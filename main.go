@@ -247,7 +247,6 @@ func main() {
                 a.Publish()
                 // Drive the animation by preparing to paint the next frame
                 // after this one is shown.
-                time.Sleep(100 * time.Millisecond)
                 a.Send(paint.Event{})
             case key.Event:
                     if e.Direction != key.DirRelease {
