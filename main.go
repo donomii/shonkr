@@ -336,11 +336,11 @@ func onStart(glctx gl.Context) {
     a_TexCoordinate = glctx.GetAttribLocation(program, "a_TexCoordinate")
     transU = glctx.GetUniformLocation(program, "transform")
     u_Texture = glctx.GetUniformLocation(program, "u_Texture")
-    fmt.Println("Creating buffers")
+    //fmt.Println("Creating buffers")
 
     buf = glctx.CreateBuffer()
     glctx.BindBuffer(gl.ARRAY_BUFFER, buf)
-    fmt.Printf("triangleData: %V\n", triangleData)
+    //fmt.Printf("triangleData: %V\n", triangleData)
     glctx.BufferData(gl.ARRAY_BUFFER, triangleData, gl.STATIC_DRAW)
 
     tbuf = glctx.CreateBuffer()

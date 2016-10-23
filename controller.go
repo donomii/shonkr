@@ -3,6 +3,7 @@
 package main
 
 import (
+    "github.com/atotto/clipboard"
     "io/ioutil"
     "fmt"
     "strings"
@@ -55,21 +56,40 @@ func handleEvent(a app.App, i interface{}) {
 	log.Println(i)
 	switch e := a.Filter(i).(type) {
 	case key.Event:
-        if inputMode {
-            switch e.Rune {
-                case '`':
-                    inputMode = false
-                default:
-                    txtBuff = fmt.Sprintf("%s%s%s",txtBuff[:cursor], string(e.Rune),txtBuff[cursor:])
-                    cursor++
-            }
-        } else {
-            switch e.Code {
+     switch e.Code {
             case key.CodeDeleteBackspace:
                 if cursor > 0 {
                     txtBuff = deleteLeft(txtBuff, cursor)
                     cursor--
                 }
+            case key.CodeLeftArrow:
+                cursor = cursor-1
+            case key.CodeRightArrow:
+                cursor = cursor+1
+            case key.CodeUpArrow:
+                cursor = scanToPrevLine(txtBuff, cursor)
+            case key.CodeDownArrow:
+                cursor = scanToNextLine(txtBuff, cursor)
+   }
+        if inputMode {
+            switch e.Code {
+            case key.CodeLeftShift:
+            case key.CodeRightShift:
+            case key.CodeReturnEnter:
+                txtBuff = fmt.Sprintf("%s%s%s",txtBuff[:cursor], "\n",txtBuff[cursor:])
+                cursor++
+            default:
+                switch e.Rune {
+                    case '`':
+                        inputMode = false
+                    default:
+                        txtBuff = fmt.Sprintf("%s%s%s",txtBuff[:cursor], string(e.Rune),txtBuff[cursor:])
+                        cursor++
+                }
+
+            }
+        } else {
+            switch e.Code {
             case key.CodeA:
                 cursor = cursor-1
             case key.CodeD:
@@ -80,6 +100,9 @@ func handleEvent(a app.App, i interface{}) {
                 line = line -1
             }
             switch e.Rune {
+                case 'v':
+                    text, _ := clipboard.ReadAll()
+                        txtBuff = fmt.Sprintf("%s%s%s",txtBuff[:cursor], text,txtBuff[cursor:])
                 case '~':
                     saveFile(fname, txtBuff)
                 case 'i':

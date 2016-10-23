@@ -312,17 +312,30 @@ func searchBackPage(txtBuf string, input FormatParams) int {
 func RenderPara( f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8, text string, transparent bool, doDraw bool) {
     //log.Printf("Cursor: %v\n", cursor)
     letters := strings.Split(text, "")
+    letters = append(letters, " ")
     xpos := orig_xpos
     orig_fontSize := f.FontSize
+    defer func(){
+        f.FontSize=orig_fontSize
+        if cursor >= len(letters)-1 {
+            cursor = len(letters)-1
+        }
+    }()
     maxHeight := 0
     wobblyMode := false
-    for i, v := range letters {
-    if i<f.FirstDrawnCharPos {
-        continue
+    if cursor > len(letters) {
+        cursor = len(letters)
     }
-                if (cursor == i) && doDraw {
-                    drawCursor(xpos, ypos, u8Pix)
-                }
+    for i, v := range letters {
+        if i<f.FirstDrawnCharPos {
+            continue
+        }
+        if (cursor == i) && doDraw {
+            drawCursor(xpos, ypos, u8Pix)
+        }
+        if i >= len(letters)-1 {
+            continue
+        }
         if unicode.IsUpper([]rune(v)[0]) {
             if i>0 && letters[i-1] == " " {
                 f.Colour = &color.RGBA{255,0,0,255}
