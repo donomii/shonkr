@@ -281,7 +281,7 @@ type FormatParams struct {
 }
 
 func drawCursor(xpos,ypos int, u8Pix []byte) {
-    //log.Printf("Hit Cursor: %v\n", cursor)
+    //log.Printf("Hit Cursor: %v\n", gc.ActiveBuffer.Cursor)
 
     for xx:=int(0); xx<3; xx++ {
         for yy:=int(0); yy<20; yy++ {
@@ -299,7 +299,7 @@ func drawCursor(xpos,ypos int, u8Pix []byte) {
 func searchBackPage(txtBuf string, input FormatParams) int {
     x:= input.StartLinePos
     newLastDrawn := input.LastDrawnCharPos
-    for x=input.StartLinePos; x>0 && input.FirstDrawnCharPos < newLastDrawn ; x-- {
+    for x=input.StartLinePos; x>0 && input.FirstDrawnCharPos < newLastDrawn ; x=scanToPrevLine (txtBuf, x) {
         f := input
         f.FirstDrawnCharPos=x
         RenderPara(&f, 0,0,screenWidth,screenHeight, nil, txtBuf, false, false)
@@ -310,27 +310,27 @@ func searchBackPage(txtBuf string, input FormatParams) int {
 
 
 func RenderPara( f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8, text string, transparent bool, doDraw bool) {
-    //log.Printf("Cursor: %v\n", cursor)
+    //log.Printf("Cursor: %v\n", gc.ActiveBuffer.Cursor)
     letters := strings.Split(text, "")
     letters = append(letters, " ")
     xpos := orig_xpos
     orig_fontSize := f.FontSize
     defer func(){
         f.FontSize=orig_fontSize
-        if cursor >= len(letters)-1 {
-            cursor = len(letters)-1
+        if gc.ActiveBuffer.Cursor >= len(letters)-1 {
+            gc.ActiveBuffer.Cursor = len(letters)-1
         }
     }()
     maxHeight := 0
     wobblyMode := false
-    if cursor > len(letters) {
-        cursor = len(letters)
+    if gc.ActiveBuffer.Cursor > len(letters) {
+        gc.ActiveBuffer.Cursor = len(letters)
     }
     for i, v := range letters {
         if i<f.FirstDrawnCharPos {
             continue
         }
-        if (cursor == i) && doDraw {
+        if (gc.ActiveBuffer.Cursor == i) && doDraw {
             drawCursor(xpos, ypos, u8Pix)
         }
         if i >= len(letters)-1 {
@@ -358,7 +358,7 @@ func RenderPara( f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8
             f.Line++
             f.StartLinePos = i
         } else {
-            if line <= f.Line {
+            if gc.ActiveBuffer.Cursor <= f.Line {
                 img := DrawStringRGBA(f.FontSize, *f.Colour, v)
                 po2 := MaxI(NextPo2(img.Bounds().Max.X), NextPo2(img.Bounds().Max.Y))
 
@@ -380,7 +380,7 @@ func RenderPara( f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8
                 if doDraw {
                     PasteImg(img, xpos, ypos + ytweak, u8Pix, transparent)
                 }
-                if cursor == i {
+                if gc.ActiveBuffer.Cursor == i {
                     drawCursor(xpos, ypos, u8Pix)
                 }
                 maxHeight = MaxI(maxHeight, po2)

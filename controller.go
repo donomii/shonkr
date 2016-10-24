@@ -3,6 +3,12 @@
 package main
 
 import (
+    "io"
+    "golang.org/x/crypto/ssh/agent"
+    "net"
+    "os"
+    //"github.com/mitchellh/go-homedir"
+    "golang.org/x/crypto/ssh"
     "github.com/atotto/clipboard"
     "io/ioutil"
     "fmt"
@@ -32,6 +38,13 @@ func scanToNextLine (txt string, c int) int{
     return x
 }
 
+func scanToEndOfLine (txt string, c int) int{
+    letters := strings.Split(txt, "")
+    x:=c
+    for x= c+1; x>0 && x<len(txt) && !( letters[x]== "\n"); x++ {}
+    return x
+}
+
 func deleteLeft(t string, p int) string {
     if (p>0) {
         return strings.Join([]string{t[:p-1],t[p:]}, "")
@@ -50,81 +63,161 @@ func saveFile(fname string, txt string ) {
         }
     }
 
+func processPort(r io.Reader) {
+    for {
+        buf := make([]byte, 1)
+        if _, err := io.ReadAtLeast(r, buf, 1); err != nil {
+            //log.Fatal(err)
+        }
+        gc.ActiveBuffer.Text = strings.Join([]string{gc.ActiveBuffer.Text,string(buf)}, "")
+    }
+}
 
-var inputMode bool = false
+
+func SSHAgent() ssh.AuthMethod {
+    if sshAgent, err := net.Dial("unix", os.Getenv("SSH_AUTH_SOCK")); err == nil {
+        return ssh.PublicKeysCallback(agent.NewClient(sshAgent).Signers)
+    }
+    return nil
+}
+
 func handleEvent(a app.App, i interface{}) {
 	log.Println(i)
 	switch e := a.Filter(i).(type) {
 	case key.Event:
      switch e.Code {
             case key.CodeDeleteBackspace:
-                if cursor > 0 {
-                    txtBuff = deleteLeft(txtBuff, cursor)
-                    cursor--
+                if gc.ActiveBuffer.Cursor > 0 {
+                    gc.ActiveBuffer.Text = deleteLeft(gc.ActiveBuffer.Text, gc.ActiveBuffer.Cursor)
+                    gc.ActiveBuffer.Cursor--
                 }
             case key.CodeLeftArrow:
-                cursor = cursor-1
+                gc.ActiveBuffer.Cursor = gc.ActiveBuffer.Cursor-1
             case key.CodeRightArrow:
-                cursor = cursor+1
+                gc.ActiveBuffer.Cursor = gc.ActiveBuffer.Cursor+1
             case key.CodeUpArrow:
-                cursor = scanToPrevLine(txtBuff, cursor)
+                gc.ActiveBuffer.Cursor = scanToPrevLine(gc.ActiveBuffer.Text, gc.ActiveBuffer.Cursor)
             case key.CodeDownArrow:
-                cursor = scanToNextLine(txtBuff, cursor)
+                gc.ActiveBuffer.Cursor = scanToNextLine(gc.ActiveBuffer.Text, gc.ActiveBuffer.Cursor)
+            case key.CodePageDown:
+                    //page down
+                    log.Println("Scanning to start of next page from ", activeFormatter.LastDrawnCharPos)
+                    activeFormatter.FirstDrawnCharPos = scanToPrevLine(gc.ActiveBuffer.Text,activeFormatter.LastDrawnCharPos)
+                    gc.ActiveBuffer.Cursor = activeFormatter.FirstDrawnCharPos
+            case key.CodePageUp:
+                    //gc.ActiveBuffer.Line = gc.ActiveBuffer.Line -24
+                    //if gc.ActiveBuffer.Line < 0 { gc.ActiveBuffer.Line = 0 }
+                    //Page up
+                    start := searchBackPage(gc.ActiveBuffer.Text, activeFormatter)
+                    log.Println("New start at ", start)
+                    activeFormatter.FirstDrawnCharPos = start
+                    gc.ActiveBuffer.Cursor = activeFormatter.FirstDrawnCharPos
    }
-        if inputMode {
+        if gc.ActiveBuffer.InputMode {
             switch e.Code {
             case key.CodeLeftShift:
             case key.CodeRightShift:
             case key.CodeReturnEnter:
-                txtBuff = fmt.Sprintf("%s%s%s",txtBuff[:cursor], "\n",txtBuff[cursor:])
-                cursor++
+                gc.ActiveBuffer.Text = fmt.Sprintf("%s%s%s",gc.ActiveBuffer.Text[:gc.ActiveBuffer.Cursor], "\n",gc.ActiveBuffer.Text[gc.ActiveBuffer.Cursor:])
+                gc.ActiveBuffer.Cursor++
             default:
                 switch e.Rune {
                     case '`':
-                        inputMode = false
+                        gc.ActiveBuffer.InputMode = false
                     default:
-                        txtBuff = fmt.Sprintf("%s%s%s",txtBuff[:cursor], string(e.Rune),txtBuff[cursor:])
-                        cursor++
+                        gc.ActiveBuffer.Text = fmt.Sprintf("%s%s%s",gc.ActiveBuffer.Text[:gc.ActiveBuffer.Cursor], string(e.Rune),gc.ActiveBuffer.Text[gc.ActiveBuffer.Cursor:])
+                        gc.ActiveBuffer.Cursor++
                 }
 
             }
         } else {
             switch e.Code {
             case key.CodeA:
-                cursor = cursor-1
+                gc.ActiveBuffer.Cursor = gc.ActiveBuffer.Cursor-1
             case key.CodeD:
-                cursor = cursor+1
+                gc.ActiveBuffer.Cursor = gc.ActiveBuffer.Cursor+1
             case key.CodeQ:
-                line = line +1
+                gc.ActiveBuffer.Cursor = gc.ActiveBuffer.Cursor +1
             case key.CodeE:
-                line = line -1
+                gc.ActiveBuffer.Cursor = gc.ActiveBuffer.Cursor -1
             }
             switch e.Rune {
+                case 'L':
+                    config := &ssh.ClientConfig{
+                        User: "",
+                        Auth: []ssh.AuthMethod{
+                            // Use the PublicKeys method for remote authentication.
+                            SSHAgent(),
+                        },
+                    }
+
+                    // Dial your ssh server.
+                    conn, err := ssh.Dial("tcp", ":22", config)
+                    if err != nil {
+                        log.Fatal("unable to connect: ", err)
+                    }
+
+                    session, err := conn.NewSession()
+                    if err != nil {
+                        //return fmt.Errorf("Failed to create session: %s", err)
+                    }
+
+                    stdin, err := session.StdinPipe()
+                    if err != nil {
+                        //return fmt.Errorf("Unable to setup stdin for session: %v", err)
+                    }
+                    go io.Copy(stdin, os.Stdin)
+
+                    stdout, err := session.StdoutPipe()
+                    if err != nil {
+                        //return fmt.Errorf("Unable to setup stdout for session: %v", err)
+                    }
+                    //go io.Copy(os.Stdout, stdout)
+                    go processPort(stdout)
+
+                    stderr, err := session.StderrPipe()
+                    if err != nil {
+                        //return fmt.Errorf("Unable to setup stderr for session: %v", err)
+                    }
+                    go io.Copy(os.Stderr, stderr)
+
+                    err = session.Run("ls -l $LC_USR_DIR")
+                    defer conn.Close()
+
+                case 'n':
+                    gc.ActiveBufferId ++
+                    if gc.ActiveBufferId>len(gc.BufferList)-1 {
+                        gc.ActiveBufferId = 0
+                    }
+                    gc.ActiveBuffer = gc.BufferList[gc.ActiveBufferId]
+                    log.Printf("Next buffer: %v", gc.ActiveBufferId)
                 case 'v':
                     text, _ := clipboard.ReadAll()
-                        txtBuff = fmt.Sprintf("%s%s%s",txtBuff[:cursor], text,txtBuff[cursor:])
+                        gc.ActiveBuffer.Text = fmt.Sprintf("%s%s%s",gc.ActiveBuffer.Text[:gc.ActiveBuffer.Cursor], text,gc.ActiveBuffer.Text[gc.ActiveBuffer.Cursor:])
                 case '~':
-                    saveFile(fname, txtBuff)
+                    saveFile(fname, gc.ActiveBuffer.Text)
                 case 'i':
-                    inputMode = true
+                   gc.ActiveBuffer.InputMode = true
+                case '$':
+                   gc.ActiveBuffer.Cursor = scanToEndOfLine(gc.ActiveBuffer.Text, gc.ActiveBuffer.Cursor)
+                case 'A':
+                   gc.ActiveBuffer.Cursor = scanToEndOfLine(gc.ActiveBuffer.Text, gc.ActiveBuffer.Cursor)
+                   gc.ActiveBuffer.InputMode = true
+                case 'a':
+                   gc.ActiveBuffer.Cursor++
+                   gc.ActiveBuffer.InputMode = true
                 case 'w':
-                    cursor = scanToPrevLine(txtBuff, cursor)
+                    gc.ActiveBuffer.Cursor = scanToPrevLine(gc.ActiveBuffer.Text, gc.ActiveBuffer.Cursor)
                 case 's':
-                    cursor = scanToNextLine(txtBuff, cursor)
+                    gc.ActiveBuffer.Cursor = scanToNextLine(gc.ActiveBuffer.Text, gc.ActiveBuffer.Cursor)
                 case 'W':
-                    //Page up
-                    start := searchBackPage(txtBuff, activeFormatter)
-                    log.Println("New start at ", start)
-                    activeFormatter.FirstDrawnCharPos = start
-                    cursor = activeFormatter.FirstDrawnCharPos
                 case 'S':
-                    //page down
-                    log.Println("Scanning to start of next page from ", activeFormatter.LastDrawnCharPos)
-                    activeFormatter.FirstDrawnCharPos = scanToPrevLine(txtBuff,activeFormatter.LastDrawnCharPos)
-                    cursor = activeFormatter.FirstDrawnCharPos
             }
         }
 
 	}
+    if gc.ActiveBuffer.Cursor > activeFormatter.LastDrawnCharPos {
+        activeFormatter.FirstDrawnCharPos = scanToNextLine (gc.ActiveBuffer.Text, activeFormatter.FirstDrawnCharPos)
+    }
 }
 

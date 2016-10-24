@@ -60,7 +60,6 @@ import (
 import "github.com/go-gl/mathgl/mgl32"
         import "golang.org/x/mobile/exp/sensor"
 
-var txtBuff string
 var clientWidth=uint(800)
 var clientHeight=uint(600)
 var u8Pix []uint8
@@ -161,9 +160,6 @@ var texData = f32.Bytes(binary.LittleEndian,
     0.0, 0.0, 0.9, // bottom right
 )
 
-var line = 0
-var cursor = 0
-
 
 func do_profile() {
     //defer profile.Start(profile.MemProfile).Stop()
@@ -174,8 +170,27 @@ func do_profile() {
 
 var activeFormatter FormatParams
 func main() {
+    gc.ActiveBuffer = &Buffer{}
     activeFormatter = FormatParams{&color.RGBA{255,255,255,255},0,0, 24.0,0,0}
-    txtBuff="A test string"
+    gc.ActiveBuffer.Text=`
+Welcome to the shonky editor
+----------------------------
+
+Shonkr started as an attempt to combine vi style editing with an accelerated OpenGL layout engine, and promptly went off the rails.
+
+To edit a file, start shonkr from the command line:
+
+    shonkr my_file.txt
+
+shonkr has two modes, like Vi - a movement/editing mode, and an insert mode
+
+Press  to leave insert mode.  You can then use (a small number) of the usual Vi keys
+
+i - insert
+a - insert after next letter
+A - insert at EOL
+$ - Skip to EOL
+`;
     log.Printf("Starting main...")
     sceneCam = sceneCamera.New()
     runtime.GOMAXPROCS(2)
@@ -249,9 +264,16 @@ func main() {
                 // after this one is shown.
                 a.Send(paint.Event{})
             case key.Event:
-                    if e.Direction != key.DirRelease {
-                        handleEvent(a, e)
+                if e.Direction != key.DirRelease {
+                    handleEvent(a, e)
+                } else {
+                    log.Println(e)
+                //Well, this is interesting.  The escape key does not send a Press event, only a release event
+                    if e.Code == key.CodeEscape {
+                        gc.ActiveBuffer.InputMode = false
+                        e.Code = key.CodeQ
                     }
+                }
             case touch.Event:
                 theatreCamera = mgl32.LookAt(0.0, 0.0, 0.1, 0.0, 0.0, -0.5, 0.0, 1.0, 0.0)
                 if e.Type == touch.TypeBegin {
@@ -314,11 +336,23 @@ func reDimBuff(x,y int) {
 var fname string
 
 func onStart(glctx gl.Context) {
+    gc.ActiveBufferId = 0
     if len(os.Args)>1 {
         fname = os.Args[1]
         log.Println("Loading file: ", fname)
         b, _ := ioutil.ReadFile(fname)
-        txtBuff = string(b)
+        gc.ActiveBuffer.Text = string(b)
+        gc.ActiveBuffer.FileName = fname
+        gc.BufferList = append(gc.BufferList, gc.ActiveBuffer)
+    }
+     if len(os.Args)>2 {
+        fname = os.Args[2]
+        log.Println("Loading file: ", fname)
+        b, _ := ioutil.ReadFile(fname)
+        buf := &Buffer{}
+        buf.Text = string(b)
+        buf.FileName = fname
+        gc.BufferList = append(gc.BufferList, buf)
     }
     log.Printf("Onstart callback...")
     reDimBuff(int(clientWidth),int(clientHeight))
@@ -344,7 +378,7 @@ func onStart(glctx gl.Context) {
 
     tbuf = glctx.CreateBuffer()
     glctx.BindBuffer(gl.ARRAY_BUFFER, tbuf)
-    fmt.Printf("texAlignData: %V\n", texAlignData)
+    //fmt.Printf("texAlignData: %V\n", texAlignData)
     glctx.BufferData(gl.ARRAY_BUFFER, texAlignData, gl.STATIC_DRAW)
 
 
@@ -380,7 +414,7 @@ func onPaint(glctx gl.Context, sz size.Event) {
     for i, _:= range u8Pix {
         u8Pix[i] = 0
     }
-    RenderPara(&activeFormatter, 5, 5, screenWidth, screenHeight, u8Pix, txtBuff, false, true)
+    RenderPara(&activeFormatter, 5, 5, screenWidth, screenHeight, u8Pix, gc.ActiveBuffer.Text, false, true)
     glctx.Enable(gl.BLEND)
     glctx.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
     glctx.Enable( gl.DEPTH_TEST );
@@ -422,6 +456,23 @@ func onPaint(glctx gl.Context, sz size.Event) {
     glctx.DrawArrays(gl.TRIANGLES, 0, 6)
     glctx.DisableVertexAttribArray(position)
 }
+
+type GlobalConfig struct {
+    ActiveBuffer   *Buffer
+    ActiveBufferId int
+    BufferList     []*Buffer
+}
+
+type Buffer struct {
+    Text string
+    InputMode bool
+    Cursor int
+    Line int
+    FileName string
+}
+
+var gc GlobalConfig
+
 
 type vertexMeta struct {
     coordsPerVertex int
