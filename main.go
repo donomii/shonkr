@@ -168,11 +168,10 @@ func do_profile() {
     time.Sleep(60*time.Second)
 }
 
-var activeFormatter FormatParams
 func main() {
-    gc.ActiveBuffer = &Buffer{}
-    activeFormatter = FormatParams{&color.RGBA{255,255,255,255},0,0, 24.0,0,0}
-    gc.ActiveBuffer.Text=`
+    gc.ActiveBuffer = NewBuffer()
+    gc.ActiveBuffer.Formatter = NewFormatter()
+    gc.ActiveBuffer.Data.Text=`
 Welcome to the shonky editor
 ----------------------------
 
@@ -335,25 +334,45 @@ func reDimBuff(x,y int) {
 
 var fname string
 
+func NewFormatter() *FormatParams{
+    return &FormatParams{&color.RGBA{255,255,255,255},0,0,0, 24.0,0,0, false}
+}
+
+func NewBuffer() *Buffer{
+    buf := &Buffer{}
+    buf.Data = &BufferData{}
+    buf.Formatter = NewFormatter()
+    buf.Data.Text = ""
+    buf.Data.FileName = ""
+    return buf
+}
+
 func onStart(glctx gl.Context) {
     gc.ActiveBufferId = 0
     if len(os.Args)>1 {
         fname = os.Args[1]
         log.Println("Loading file: ", fname)
         b, _ := ioutil.ReadFile(fname)
-        gc.ActiveBuffer.Text = string(b)
-        gc.ActiveBuffer.FileName = fname
+        gc.ActiveBuffer = NewBuffer()
+        gc.ActiveBuffer.Data.Text = string(b)
+        gc.ActiveBuffer.Data.FileName = fname
         gc.BufferList = append(gc.BufferList, gc.ActiveBuffer)
     }
      if len(os.Args)>2 {
         fname = os.Args[2]
         log.Println("Loading file: ", fname)
         b, _ := ioutil.ReadFile(fname)
-        buf := &Buffer{}
-        buf.Text = string(b)
-        buf.FileName = fname
+        buf := NewBuffer()
+        buf.Data.Text = string(b)
+        buf.Data.FileName = fname
+        buf.Formatter.TailBuffer = true
         gc.BufferList = append(gc.BufferList, buf)
     }
+    for i:=0;i<5;i++ {
+        buf := NewBuffer()
+        gc.BufferList = append(gc.BufferList, buf)
+    }
+    gc.BufferList[2].Data = gc.BufferList[1].Data
     log.Printf("Onstart callback...")
     reDimBuff(int(clientWidth),int(clientHeight))
     var err error
@@ -389,8 +408,6 @@ func onStart(glctx gl.Context) {
     glctx.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
 
-    //images = glutil.NewImages(glctx)
-    //fps = debug.NewFPS(images)
 }
 
 func onStop(glctx gl.Context) {
@@ -414,7 +431,7 @@ func onPaint(glctx gl.Context, sz size.Event) {
     for i, _:= range u8Pix {
         u8Pix[i] = 0
     }
-    RenderPara(&activeFormatter, 5, 5, screenWidth, screenHeight, u8Pix, gc.ActiveBuffer.Text, false, true)
+    RenderPara(gc.ActiveBuffer.Formatter, 5, 5, screenWidth, screenHeight, u8Pix, gc.ActiveBuffer.Data.Text, false, true, true)
     glctx.Enable(gl.BLEND)
     glctx.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
     glctx.Enable( gl.DEPTH_TEST );
@@ -452,23 +469,35 @@ func onPaint(glctx gl.Context, sz size.Event) {
     // Tell the texture uniform sampler to use this texture in the shader by binding to texture unit 0.
     glctx.Uniform1i(u_Texture, 0);
 
-    //glctx.Viewport(0,0, sz.WidthPx/2, sz.HeightPx)
+    glctx.Viewport(0,0, sz.WidthPx/2, sz.HeightPx)
+    glctx.DrawArrays(gl.TRIANGLES, 0, 6)
+
+
+    for i, _:= range u8Pix {
+        u8Pix[i] = 0
+    }
+    RenderPara(gc.BufferList[1].Formatter, 5, 5, screenWidth, screenHeight, u8Pix, gc.BufferList[1].Data.Text, false, true, false)
+    glctx.TexImage2D(gl.TEXTURE_2D, 0, int(clientWidth), int(clientHeight), gl.RGBA, gl.UNSIGNED_BYTE, u8Pix)
+    glctx.Viewport(sz.WidthPx/2,0, sz.WidthPx/2, sz.HeightPx)
     glctx.DrawArrays(gl.TRIANGLES, 0, 6)
     glctx.DisableVertexAttribArray(position)
-}
 
+}
 type GlobalConfig struct {
     ActiveBuffer   *Buffer
     ActiveBufferId int
     BufferList     []*Buffer
 }
 
-type Buffer struct {
-    Text string
-    InputMode bool
-    Cursor int
-    Line int
+type BufferData struct {
+    Text string     //FIXME rename Buffer to View, have proper text buffer manager
     FileName string
+}
+
+type Buffer struct {
+    Data    *BufferData
+    InputMode bool
+    Formatter *FormatParams
 }
 
 var gc GlobalConfig

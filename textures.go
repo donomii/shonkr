@@ -270,19 +270,31 @@ func LoadGameFont(fileName string) *truetype.Font {
     return txtFont
 }
 
+func dumpBuffer(b *Buffer) {
+    fmt.Printf(`
+FileName: %v,
+Active Buffer: %v,
+StartChar: %v,
+LastChar: %v,
+Cursor: %v,
+Tail: %v
+`, b.Data.FileName, gc.ActiveBufferId,b.Formatter.FirstDrawnCharPos, b.Formatter.LastDrawnCharPos, b.Formatter.Cursor, b.Formatter.TailBuffer)
+}
+
+
 
 type FormatParams struct {
   Colour *color.RGBA
   Line int
+  Cursor int
   StartLinePos int      //Updated during render, holds the closest start of line, including soft line breaks
   FontSize float64
   FirstDrawnCharPos  int        //The first character to draw on the screen.  Anything before this is ignored
   LastDrawnCharPos  int        //The last character that we were able to fit on the screen
+  TailBuffer bool
 }
 
 func drawCursor(xpos,ypos int, u8Pix []byte) {
-    //log.Printf("Hit Cursor: %v\n", gc.ActiveBuffer.Cursor)
-
     for xx:=int(0); xx<3; xx++ {
         for yy:=int(0); yy<20; yy++ {
             offset:= uint(yy+ypos)*clientWidth*4+uint(xx+xpos)*4
@@ -296,41 +308,55 @@ func drawCursor(xpos,ypos int, u8Pix []byte) {
         }
     }
 }
-func searchBackPage(txtBuf string, input FormatParams) int {
+
+func searchBackPage(txtBuf string, orig_f *FormatParams) int {
+    input := *orig_f
     x:= input.StartLinePos
     newLastDrawn := input.LastDrawnCharPos
     for x=input.StartLinePos; x>0 && input.FirstDrawnCharPos < newLastDrawn ; x=scanToPrevLine (txtBuf, x) {
         f := input
         f.FirstDrawnCharPos=x
-        RenderPara(&f, 0,0,screenWidth,screenHeight, nil, txtBuf, false, false)
+        RenderPara(&f, 0,0,screenWidth,screenHeight, nil, txtBuf, false, false, false)
         newLastDrawn = f.LastDrawnCharPos
     }
     return x
 }
 
+//Check and correct formatparams to make sure e.g. cursor is always on the screen
+func sanityCheck(f *FormatParams) {
+    if f.Cursor < 0 {
+        f.Cursor =  0
+    }
+}
 
-func RenderPara( f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8, text string, transparent bool, doDraw bool) {
-    //log.Printf("Cursor: %v\n", gc.ActiveBuffer.Cursor)
+func RenderPara( f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8, text string, transparent bool, doDraw bool, showCursor bool) {
+    if f.TailBuffer {
+        f.Cursor = len(text)
+        scrollToCursor(f, text)  //Use pageup function, once it is fast enough
+    }
+    //log.Printf("Cursor: %v\n", f.Cursor)
     letters := strings.Split(text, "")
     letters = append(letters, " ")
     xpos := orig_xpos
     orig_fontSize := f.FontSize
     defer func(){
         f.FontSize=orig_fontSize
-        if gc.ActiveBuffer.Cursor >= len(letters)-1 {
-            gc.ActiveBuffer.Cursor = len(letters)-1
+        if f.Cursor >= len(letters)-1 {
+            f.Cursor = len(letters)-1
         }
+        sanityCheck(f)
     }()
     maxHeight := 0
     wobblyMode := false
-    if gc.ActiveBuffer.Cursor > len(letters) {
-        gc.ActiveBuffer.Cursor = len(letters)
+    if f.Cursor > len(letters) {
+        f.Cursor = len(letters)
     }
+    sanityCheck(f)
     for i, v := range letters {
         if i<f.FirstDrawnCharPos {
             continue
         }
-        if (gc.ActiveBuffer.Cursor == i) && doDraw {
+        if (f.Cursor == i) && doDraw {
             drawCursor(xpos, ypos, u8Pix)
         }
         if i >= len(letters)-1 {
@@ -358,8 +384,12 @@ func RenderPara( f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8
             f.Line++
             f.StartLinePos = i
         } else {
-            if gc.ActiveBuffer.Cursor <= f.Line {
+            //if f.Cursor <= f.Line {
+            //if f.Cursor >= f.FirstDrawnCharPos {
                 img := DrawStringRGBA(f.FontSize, *f.Colour, v)
+                XmaX, YmaX := img.Bounds().Max.X, img.Bounds().Max.Y
+                //imgBytes := Rotate270(XmaX, YmaX, img.Pix)
+                imgBytes := img.Pix
                 po2 := MaxI(NextPo2(img.Bounds().Max.X), NextPo2(img.Bounds().Max.Y))
 
                 if xpos + po2 > maxX {
@@ -378,14 +408,15 @@ func RenderPara( f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8
                     ytweak = int(math.Sin(float64(xpos))*5.0)
                 }
                 if doDraw {
-                    PasteImg(img, xpos, ypos + ytweak, u8Pix, transparent)
+                    //PasteImg(img, xpos, ypos + ytweak, u8Pix, transparent)
+                    PasteBytes(XmaX, YmaX, imgBytes, xpos, ypos + ytweak, int(clientWidth), int(clientHeight), u8Pix, transparent)
                 }
-                if gc.ActiveBuffer.Cursor == i {
+                if f.Cursor == i && showCursor {
                     drawCursor(xpos, ypos, u8Pix)
                 }
                 maxHeight = MaxI(maxHeight, po2)
                 xpos = xpos+ po2/2
-            }
+            //}
         }
     }
 }
@@ -399,11 +430,37 @@ func MaxI(a, b int) int {
 }
 
 
+//PasteBytes 
+//
+// Takes a bag of bytes, and some dimensions, and pastes it into another bag of bytes
+func PasteBytes(srcWidth, srcHeight int, srcBytes []byte, xpos, ypos, dstWidth, dstHeight int, u8Pix []uint8, transparent bool) {
+    //log.Printf("Copying source image (%v,%v) into destination image (%v,%v) at point (%v, %v)\n", srcWidth, srcHeight, dstWidth, dstHeight, xpos, ypos)
+    startDrawing = true
+    bpp := 4  //bytes per pixel
+
+    for i:=0;i<srcHeight; i++ {
+        for j := 0;j<srcWidth; j++ {
+            srcOff := i*srcWidth*4 + j*4
+            dstOff := (ypos+i)*dstWidth*bpp+xpos*bpp+j*bpp
+            if transparent {
+                if (srcBytes[i*srcWidth*4 + j*4]>u8Pix[(ypos+i)*dstWidth*bpp+xpos*bpp+j*bpp]) {
+                    u8Pix[(ypos+i)*dstWidth*bpp+xpos*bpp+j*bpp]    = srcBytes[i*srcWidth*bpp + j*bpp]
+                    u8Pix[(ypos+i)*dstWidth*bpp+xpos*bpp+j*bpp +1] = srcBytes[i*srcWidth*bpp + j*bpp +1]
+                    u8Pix[(ypos+i)*dstWidth*bpp+xpos*bpp+j*bpp +2] = srcBytes[i*srcWidth*bpp + j*bpp +2]
+                    u8Pix[(ypos+i)*dstWidth*bpp+xpos*bpp+j*bpp +3] = srcBytes[i*srcWidth*bpp + j*bpp +3]
+                }
+            } else {
+                copy(u8Pix[dstOff:dstOff+4], srcBytes[srcOff:srcOff+4])  //FIXME move this outside the line loop so we can copy entire lines in one call
+            }
+        }
+    }
+}
+
+
 func PasteImg(img *image.RGBA, xpos, ypos int, u8Pix []uint8, transparent bool) {
     po2 := uint(MaxI(NextPo2(img.Bounds().Max.X), NextPo2(img.Bounds().Max.Y)))
     //log.Printf("Chose texture size: %v\n", po2)
     wordBuff := paintTexture (img, nil, po2)
-    startDrawing = true
     bpp := uint(4)  //bytes per pixel
 
     h:= img.Bounds().Max.Y
@@ -445,4 +502,27 @@ func PasteText(tSize float64, xpos, ypos int, text string, u8Pix []uint8, transp
 
 func NextPo2(n int) int {
     return int(math.Pow(2,math.Ceil(math.Log2(float64(n)))))
+}
+
+func Rotate270( srcW, srcH int, src []byte) []byte {
+    //log.Printf("Rotating image (%v,%v)\n",srcW, srcH)
+    dstW := srcH
+    dstH := srcW
+    dst := make([]byte, dstW*dstH*4)
+
+
+        for dstY := 0; dstY < dstH; dstY++ {
+            for dstX := 0; dstX < dstW; dstX++ {
+                srcX := dstY
+                //srcY := dstW - dstX - 1
+                srcY := dstX
+
+                srcOff := srcY*srcW*4 + srcX*4
+                dstOff := dstY*dstW*4 + dstX*4
+
+                copy(dst[dstOff:dstOff+4], src[srcOff:srcOff+4])
+            }
+        }
+
+    return dst
 }

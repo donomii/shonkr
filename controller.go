@@ -27,14 +27,14 @@ func handleSensor(e sensor.Event) {
 func scanToPrevLine (txt string, c int) int{
     letters := strings.Split(txt, "")
     x:=c
-    for x= c-1; x>0 && x<len(txt) && !( letters[x-1]== "\n" && letters[x]!="\n"); x-- {}
+    for x= c-1; x>1 && x<len(txt) && !( letters[x-1]== "\n" && letters[x]!="\n"); x-- {}
     return x
 }
 
 func scanToNextLine (txt string, c int) int{
     letters := strings.Split(txt, "")
     x:=c
-    for x= c+1; x>0 && x<len(txt) && !( letters[x-1]== "\n" && letters[x]!="\n"); x++ {}
+    for x= c+1; x>1 && x<len(txt) && !( letters[x-1]== "\n" && letters[x]!="\n"); x++ {}
     return x
 }
 
@@ -57,11 +57,21 @@ func saveFile(fname string, txt string ) {
     check(err, "saving file")
 }
         
-    func check(e error, msg string) {
-        if e != nil {
-            log.Println("Error while ", msg, " : ", e)
-        }
+func check(e error, msg string) {
+    if e != nil {
+        log.Println("Error while ", msg, " : ", e)
     }
+}
+
+func scrollToCursor(f *FormatParams, txt string) {
+    cursor := f.Cursor
+    for i:=0; i<5; i++ {
+        cursor = scanToPrevLine(txt, cursor)
+    }
+
+    f.FirstDrawnCharPos = cursor
+    //start := searchBackPage(buf.Text, buf.Formatter)
+}
 
 func processPort(r io.Reader) {
     for {
@@ -69,8 +79,13 @@ func processPort(r io.Reader) {
         if _, err := io.ReadAtLeast(r, buf, 1); err != nil {
             //log.Fatal(err)
         }
-        gc.ActiveBuffer.Text = strings.Join([]string{gc.ActiveBuffer.Text,string(buf)}, "")
+        buffAppend(1, string(buf))
+        gc.BufferList[1].Formatter.Cursor = len(gc.BufferList[1].Data.Text)
     }
+}
+
+func buffAppend ( buffId int, txt string ) {
+        gc.BufferList[1].Data.Text = strings.Join([]string{gc.BufferList[1].Data.Text,txt}, "")
 }
 
 
@@ -81,70 +96,10 @@ func SSHAgent() ssh.AuthMethod {
     return nil
 }
 
-func handleEvent(a app.App, i interface{}) {
-	log.Println(i)
-	switch e := a.Filter(i).(type) {
-	case key.Event:
-     switch e.Code {
-            case key.CodeDeleteBackspace:
-                if gc.ActiveBuffer.Cursor > 0 {
-                    gc.ActiveBuffer.Text = deleteLeft(gc.ActiveBuffer.Text, gc.ActiveBuffer.Cursor)
-                    gc.ActiveBuffer.Cursor--
-                }
-            case key.CodeLeftArrow:
-                gc.ActiveBuffer.Cursor = gc.ActiveBuffer.Cursor-1
-            case key.CodeRightArrow:
-                gc.ActiveBuffer.Cursor = gc.ActiveBuffer.Cursor+1
-            case key.CodeUpArrow:
-                gc.ActiveBuffer.Cursor = scanToPrevLine(gc.ActiveBuffer.Text, gc.ActiveBuffer.Cursor)
-            case key.CodeDownArrow:
-                gc.ActiveBuffer.Cursor = scanToNextLine(gc.ActiveBuffer.Text, gc.ActiveBuffer.Cursor)
-            case key.CodePageDown:
-                    //page down
-                    log.Println("Scanning to start of next page from ", activeFormatter.LastDrawnCharPos)
-                    activeFormatter.FirstDrawnCharPos = scanToPrevLine(gc.ActiveBuffer.Text,activeFormatter.LastDrawnCharPos)
-                    gc.ActiveBuffer.Cursor = activeFormatter.FirstDrawnCharPos
-            case key.CodePageUp:
-                    //gc.ActiveBuffer.Line = gc.ActiveBuffer.Line -24
-                    //if gc.ActiveBuffer.Line < 0 { gc.ActiveBuffer.Line = 0 }
-                    //Page up
-                    start := searchBackPage(gc.ActiveBuffer.Text, activeFormatter)
-                    log.Println("New start at ", start)
-                    activeFormatter.FirstDrawnCharPos = start
-                    gc.ActiveBuffer.Cursor = activeFormatter.FirstDrawnCharPos
-   }
-        if gc.ActiveBuffer.InputMode {
-            switch e.Code {
-            case key.CodeLeftShift:
-            case key.CodeRightShift:
-            case key.CodeReturnEnter:
-                gc.ActiveBuffer.Text = fmt.Sprintf("%s%s%s",gc.ActiveBuffer.Text[:gc.ActiveBuffer.Cursor], "\n",gc.ActiveBuffer.Text[gc.ActiveBuffer.Cursor:])
-                gc.ActiveBuffer.Cursor++
-            default:
-                switch e.Rune {
-                    case '`':
-                        gc.ActiveBuffer.InputMode = false
-                    default:
-                        gc.ActiveBuffer.Text = fmt.Sprintf("%s%s%s",gc.ActiveBuffer.Text[:gc.ActiveBuffer.Cursor], string(e.Rune),gc.ActiveBuffer.Text[gc.ActiveBuffer.Cursor:])
-                        gc.ActiveBuffer.Cursor++
-                }
-
-            }
-        } else {
-            switch e.Code {
-            case key.CodeA:
-                gc.ActiveBuffer.Cursor = gc.ActiveBuffer.Cursor-1
-            case key.CodeD:
-                gc.ActiveBuffer.Cursor = gc.ActiveBuffer.Cursor+1
-            case key.CodeQ:
-                gc.ActiveBuffer.Cursor = gc.ActiveBuffer.Cursor +1
-            case key.CodeE:
-                gc.ActiveBuffer.Cursor = gc.ActiveBuffer.Cursor -1
-            }
-            switch e.Rune {
-                case 'L':
+func startSshConn(buffId int, user, password, serverAndPort string) {
+                    buffAppend(buffId, "Starting ssh connection\n")
                     config := &ssh.ClientConfig{
-                        User: "",
+                        User: user,
                         Auth: []ssh.AuthMethod{
                             // Use the PublicKeys method for remote authentication.
                             SSHAgent(),
@@ -152,7 +107,9 @@ func handleEvent(a app.App, i interface{}) {
                     }
 
                     // Dial your ssh server.
-                    conn, err := ssh.Dial("tcp", ":22", config)
+                    buffAppend(buffId, fmt.Sprintf("Connecting to ssh server as user %v: ", user))
+                    buffAppend(buffId, serverAndPort)
+                    conn, err := ssh.Dial("tcp", serverAndPort, config)
                     if err != nil {
                         log.Fatal("unable to connect: ", err)
                     }
@@ -174,6 +131,7 @@ func handleEvent(a app.App, i interface{}) {
                     }
                     //go io.Copy(os.Stdout, stdout)
                     go processPort(stdout)
+                    gc.BufferList[1].Formatter.TailBuffer = true
 
                     stderr, err := session.StderrPipe()
                     if err != nil {
@@ -181,9 +139,80 @@ func handleEvent(a app.App, i interface{}) {
                     }
                     go io.Copy(os.Stderr, stderr)
 
-                    err = session.Run("ls -l $LC_USR_DIR")
+                    err = session.Run("dude tail-all-logs")
                     defer conn.Close()
+}
 
+func pageDown(buf *Buffer) {
+    log.Println("Scanning to start of next page from ", buf.Formatter.LastDrawnCharPos)
+    buf.Formatter.FirstDrawnCharPos = scanToPrevLine(buf.Data.Text,buf.Formatter.LastDrawnCharPos)
+    buf.Formatter.Cursor = buf.Formatter.FirstDrawnCharPos
+}
+
+func pageUp(buf *Buffer) {
+    start := searchBackPage(buf.Data.Text, buf.Formatter)
+    log.Println("New start at ", start)
+    buf.Formatter.FirstDrawnCharPos = start
+    buf.Formatter.Cursor = buf.Formatter.FirstDrawnCharPos
+}
+func handleEvent(a app.App, i interface{}) {
+	log.Println(i)
+	switch e := a.Filter(i).(type) {
+	case key.Event:
+     switch e.Code {
+            case key.CodeDeleteBackspace:
+                if gc.ActiveBuffer.Formatter.Cursor > 0 {
+                    gc.ActiveBuffer.Data.Text = deleteLeft(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
+                    gc.ActiveBuffer.Formatter.Cursor--
+                }
+            case key.CodeLeftArrow:
+                gc.ActiveBuffer.Formatter.Cursor = gc.ActiveBuffer.Formatter.Cursor-1
+            case key.CodeRightArrow:
+                gc.ActiveBuffer.Formatter.Cursor = gc.ActiveBuffer.Formatter.Cursor+1
+            case key.CodeUpArrow:
+                gc.ActiveBuffer.Formatter.Cursor = scanToPrevLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
+            case key.CodeDownArrow:
+                gc.ActiveBuffer.Formatter.Cursor = scanToNextLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
+            case key.CodePageDown:
+                    //page down
+                    pageDown(gc.ActiveBuffer)
+            case key.CodePageUp:
+                    //gc.ActiveBuffer.Line = gc.ActiveBuffer.Line -24
+                    //if gc.ActiveBuffer.Line < 0 { gc.ActiveBuffer.Line = 0 }
+                    //Page up
+                    pageUp(gc.ActiveBuffer)
+   }
+        if gc.ActiveBuffer.InputMode {
+            switch e.Code {
+            case key.CodeLeftShift:
+            case key.CodeRightShift:
+            case key.CodeReturnEnter:
+                gc.ActiveBuffer.Data.Text = fmt.Sprintf("%s%s%s",gc.ActiveBuffer.Data.Text[:gc.ActiveBuffer.Formatter.Cursor], "\n",gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.Cursor:])
+                gc.ActiveBuffer.Formatter.Cursor++
+            default:
+                switch e.Rune {
+                    case '`':
+                        gc.ActiveBuffer.InputMode = false
+                    default:
+                        gc.ActiveBuffer.Data.Text = fmt.Sprintf("%s%s%s",gc.ActiveBuffer.Data.Text[:gc.ActiveBuffer.Formatter.Cursor], string(e.Rune),gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.Cursor:])
+                        gc.ActiveBuffer.Formatter.Cursor++
+                }
+
+            }
+        } else {
+            switch e.Code {
+            case key.CodeA:
+                gc.ActiveBuffer.Formatter.Cursor = gc.ActiveBuffer.Formatter.Cursor-1
+            case key.CodeD:
+                gc.ActiveBuffer.Formatter.Cursor = gc.ActiveBuffer.Formatter.Cursor+1
+            case key.CodeQ:
+                gc.ActiveBuffer.Formatter.Cursor = gc.ActiveBuffer.Formatter.Cursor +1
+            case key.CodeE:
+                gc.ActiveBuffer.Formatter.Cursor = gc.ActiveBuffer.Formatter.Cursor -1
+            }
+            switch e.Rune {
+                case 'L':
+                    go startSshConn(1, "jprice", "", "jprice-bookadmin.dev.booking.com:22")
                 case 'n':
                     gc.ActiveBufferId ++
                     if gc.ActiveBufferId>len(gc.BufferList)-1 {
@@ -193,31 +222,34 @@ func handleEvent(a app.App, i interface{}) {
                     log.Printf("Next buffer: %v", gc.ActiveBufferId)
                 case 'v':
                     text, _ := clipboard.ReadAll()
-                        gc.ActiveBuffer.Text = fmt.Sprintf("%s%s%s",gc.ActiveBuffer.Text[:gc.ActiveBuffer.Cursor], text,gc.ActiveBuffer.Text[gc.ActiveBuffer.Cursor:])
+                    gc.ActiveBuffer.Data.Text = fmt.Sprintf("%s%s%s",gc.ActiveBuffer.Data.Text[:gc.ActiveBuffer.Formatter.Cursor], text,gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.Cursor:])
                 case '~':
-                    saveFile(fname, gc.ActiveBuffer.Text)
+                    saveFile(gc.ActiveBuffer.Data.FileName, gc.ActiveBuffer.Data.Text)
                 case 'i':
                    gc.ActiveBuffer.InputMode = true
                 case '$':
-                   gc.ActiveBuffer.Cursor = scanToEndOfLine(gc.ActiveBuffer.Text, gc.ActiveBuffer.Cursor)
+                   gc.ActiveBuffer.Formatter.Cursor = scanToEndOfLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
                 case 'A':
-                   gc.ActiveBuffer.Cursor = scanToEndOfLine(gc.ActiveBuffer.Text, gc.ActiveBuffer.Cursor)
+                   gc.ActiveBuffer.Formatter.Cursor = scanToEndOfLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
                    gc.ActiveBuffer.InputMode = true
                 case 'a':
-                   gc.ActiveBuffer.Cursor++
+                   gc.ActiveBuffer.Formatter.Cursor++
                    gc.ActiveBuffer.InputMode = true
                 case 'w':
-                    gc.ActiveBuffer.Cursor = scanToPrevLine(gc.ActiveBuffer.Text, gc.ActiveBuffer.Cursor)
+                    gc.ActiveBuffer.Formatter.Cursor = scanToPrevLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
                 case 's':
-                    gc.ActiveBuffer.Cursor = scanToNextLine(gc.ActiveBuffer.Text, gc.ActiveBuffer.Cursor)
+                    gc.ActiveBuffer.Formatter.Cursor = scanToNextLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
+                case 'T':
+                    gc.ActiveBuffer.Formatter.TailBuffer = true
                 case 'W':
                 case 'S':
             }
         }
 
 	}
-    if gc.ActiveBuffer.Cursor > activeFormatter.LastDrawnCharPos {
-        activeFormatter.FirstDrawnCharPos = scanToNextLine (gc.ActiveBuffer.Text, activeFormatter.FirstDrawnCharPos)
+    if gc.ActiveBuffer.Formatter.Cursor > gc.ActiveBuffer.Formatter.LastDrawnCharPos {
+        gc.ActiveBuffer.Formatter.FirstDrawnCharPos = scanToNextLine (gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.FirstDrawnCharPos)
     }
+    dumpBuffer(gc.ActiveBuffer)
 }
 
