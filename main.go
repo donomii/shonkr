@@ -60,8 +60,8 @@ import (
 import "github.com/go-gl/mathgl/mgl32"
         import "golang.org/x/mobile/exp/sensor"
 
-var clientWidth=uint(800)
-var clientHeight=uint(600)
+var clientWidth=uint(800*3)
+var clientHeight=uint(600*3)
 var u8Pix []uint8
 var (
     startDrawing bool
@@ -76,7 +76,7 @@ var (
     colour gl.Attrib
     buf      gl.Buffer
     tbuf      gl.Buffer
-    
+
     screenWidth int
     screenHeight int
 
@@ -237,10 +237,10 @@ $ - Skip to EOL
             case size.Event:
                 sz = e
                 reCalcNeeded = true
-                screenWidth = sz.WidthPx
-                clientWidth = uint(sz.WidthPx)
-                screenHeight = sz.HeightPx
-                clientHeight = uint(sz.HeightPx)
+                screenWidth = sz.WidthPx*3
+                clientWidth = uint(sz.WidthPx)*3
+                screenHeight = sz.HeightPx*3
+                clientHeight = uint(sz.HeightPx)*3
                 reDimBuff(screenWidth,screenHeight)
                 touchX = float32(sz.WidthPx /2)
                 touchY = float32(sz.HeightPx * 9/10)
@@ -335,7 +335,7 @@ func reDimBuff(x,y int) {
 var fname string
 
 func NewFormatter() *FormatParams{
-    return &FormatParams{&color.RGBA{1,1,1,255},0,0,0, 40.0,0,0, false}
+    return &FormatParams{&color.RGBA{1,1,1,255},0,0,0, 15.0,0,0, false}
 }
 
 func NewBuffer() *Buffer{
@@ -404,14 +404,15 @@ func onStart(glctx gl.Context) {
     Tex = glctx.CreateTexture()
     glctx.BindTexture(gl.TEXTURE_2D, Tex)
 
-    glctx.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    glctx.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    glctx.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    glctx.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
 
 }
 
 func onStop(glctx gl.Context) {
     log.Printf("Stopping...")
+    os.Exit(0)
     //glctx.DeleteProgram(program)
     //glctx.DeleteBuffer(buf)
     //fps.Release()
@@ -442,7 +443,7 @@ func onPaint(glctx gl.Context, sz size.Event) {
     glctx.UseProgram(program)
 
 
-    
+
     glctx.TexImage2D(gl.TEXTURE_2D, 0, int(clientWidth), int(clientHeight), gl.RGBA, gl.UNSIGNED_BYTE, u8Pix)
 
 
@@ -514,7 +515,7 @@ const (
 )
 
 
-const vertexShader = `#version 100 
+const vertexShader = `#version 100
 uniform mat4 transform;
 
 attribute vec2 a_TexCoordinate; // Per-vertex texture coordinate information we will pass in.

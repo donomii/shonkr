@@ -4,6 +4,7 @@ package main
 import "math"
 import (
     "unicode"
+    "unicode/utf8"
     "strings"
     //sysFont "golang.org/x/mobile/exp/font"
     "io/ioutil"
@@ -37,7 +38,7 @@ func screenShot (glctx gl.Context, filename string) {
     saveBuff(uint(screenWidth),uint(screenHeight), copyScreen(glctx, int(screenWidth),int(screenHeight)), filename)
 }
 
-//Copies an image to a correctly-packed texture data array.  
+//Copies an image to a correctly-packed texture data array.
 //
 //Returns the array, modified in place.  If u8Pix is nil or texWidth is 0, it creates a new texture array and returns that.  Texture is assumed to be square.
 func paintTexture (img image.Image, u8Pix []uint8, clientWidth uint) []uint8 {
@@ -165,7 +166,8 @@ func dumpBuff(buff []uint8, width, height uint) {
 }
 
 func string2Tex(glctx gl.Context, str string, tSize float64, glTex gl.Texture) {
-    img := DrawStringRGBA(tSize, color.RGBA{255,255,255,255}, str)
+
+    img, _ := DrawStringRGBA(tSize, color.RGBA{255,255,255,255}, str)
     saveImage(img, "texttest.png")
     w:= 128 //img.Bounds().Max.X  //FIXME
     buff := paintTexture (img, nil, uint(w))
@@ -220,40 +222,53 @@ func glGenTextureFromFramebuffer(glctx gl.Context, w, h int) (gl.Framebuffer, gl
 }
 
 var renderCache map[string]*image.RGBA
-func DrawStringRGBA(txtSize float64, fontColor color.RGBA, txt string) *image.RGBA {
+var faceCache map[string]*font.Face
+func DrawStringRGBA(txtSize float64, fontColor color.RGBA, txt string) (*image.RGBA, *font.Face) {
     cacheKey := fmt.Sprintf("%v,%v,%v", txtSize, fontColor, txt)
     if renderCache == nil {
         renderCache = map[string]*image.RGBA{}
     }
+    if faceCache == nil {
+        faceCache = map[string]*font.Face{}
+    }
     im, ok := renderCache[cacheKey]
-    if ok {
-        return im
+    face, ok1 := faceCache[cacheKey]
+    if ok && ok1 {
+        return im, face
     }
     txtFont := LoadGameFont("f1.ttf")
     d := &font.Drawer{
         Src: image.NewUniform(fontColor), // 字体颜色
         Face: truetype.NewFace(txtFont, &truetype.Options{
             Size:    txtSize,
-            DPI:     72,
-            Hinting: font.HintingFull,
+            DPI:     288,
+            Hinting: font.HintingNone,
         }),
     }
-    re := d.MeasureString(txt)
-    rect := image.Rect(0, 0, int((re + 0x3f) >> 6), int(txtSize))
+    // fface := d.Face
+    // glyph, _ := utf8.DecodeRuneInString(txt)
+    // fuckedRect, _, _ := fface.GlyphBounds(glyph)
+    // letterWidth := fixed2int(fuckedRect.Max.X)
+    // fuckedRect, _, _ = fface.GlyphBounds(glyph)
+    // letterHeight := fixed2int(fuckedRect.Max.Y)
+    //
+    rect := image.Rect(0, 0, d.MeasureString(txt).Ceil(), int(txtSize*12))
+    //rect := image.Rect(0, 0, 30, 30)
     rgba := image.NewRGBA(rect)
     d.Dst = rgba
 
     d.Dot = fixed.Point26_6{
         X: fixed.I(0),
-        Y: fixed.I(rect.Max.Y*3/4),
+        Y: fixed.I(rect.Max.Y/3), //rect.Max.Y*2/3),
     }
     d.DrawString(txt)
     renderCache[cacheKey] = rgba
+    faceCache[cacheKey] = &d.Face
     //imgBytes := rgba.Pix
     //for i,v := range imgBytes {
        //imgBytes[i] = 255 - v
     //}
-    return rgba
+    return rgba, &d.Face
 }
 
 func LoadGameFont(fileName string) *truetype.Font {
@@ -271,7 +286,7 @@ func LoadGameFont(fileName string) *truetype.Font {
             defer file.Close()
             f = file
         } else {
-            log.Println(fileName)
+            //log.Println(fileName)
             file, err := os.Open(fileName)
             if err != nil {
                 log.Fatal(err)
@@ -301,8 +316,9 @@ Active Buffer: %v,
 StartChar: %v,
 LastChar: %v,
 Cursor: %v,
-Tail: %v
-`, b.Data.FileName, gc.ActiveBufferId,b.Formatter.FirstDrawnCharPos, b.Formatter.LastDrawnCharPos, b.Formatter.Cursor, b.Formatter.TailBuffer)
+Tail: %v,
+Font Size: %v
+`, b.Data.FileName, gc.ActiveBufferId,b.Formatter.FirstDrawnCharPos, b.Formatter.LastDrawnCharPos, b.Formatter.Cursor, b.Formatter.TailBuffer, b.Formatter.FontSize)
 }
 
 
@@ -319,14 +335,15 @@ type FormatParams struct {
 }
 
 func drawCursor(xpos,ypos int, u8Pix []byte) {
+    colour := byte(0)
     for xx:=int(0); xx<3; xx++ {
         for yy:=int(0); yy<20; yy++ {
             offset:= uint(yy+ypos)*clientWidth*4+uint(xx+xpos)*4
             //log.Printf("Drawpos: %v", offset)
             if offset>=0 && offset < uint(len(u8Pix)) {
-                u8Pix[offset] = 255
-                u8Pix[offset+1] = 255
-                u8Pix[offset+2] = 255
+                u8Pix[offset] = colour
+                u8Pix[offset+1] = colour
+                u8Pix[offset+2] = colour
                 u8Pix[offset+3] = 255
             }
         }
@@ -354,6 +371,21 @@ func sanityCheck(f *FormatParams, txt string) {
     if f.Cursor >= len(txt)-1 {
         f.Cursor = len(txt)-1
     }
+    if f.FirstDrawnCharPos < 0 {
+        f.FirstDrawnCharPos =  0
+    }
+    if f.FirstDrawnCharPos >= len(txt)-1 {
+        f.FirstDrawnCharPos = len(txt)-1
+    }
+
+}
+
+func fixed2int(n fixed.Int26_6) int{
+  return n.Round()
+}
+
+func log2Buff (s string) {
+  gc.BufferList[1].Data.Text = s
 }
 
 func RenderPara( f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8, text string, transparent bool, doDraw bool, showCursor bool) {
@@ -365,14 +397,14 @@ func RenderPara( f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8
     letters := strings.Split(text, "")
     letters = append(letters, " ")
     xpos := orig_xpos
-    xAdv := 1
-    yAdv := 0
+    //xAdv := 1
+    //yAdv := 0
     //lfX :=0
     //lfY := 1
     orig_fontSize := f.FontSize
     defer func(){
         f.FontSize=orig_fontSize
-        //sanityCheck(f,text)
+        sanityCheck(f,text)
     }()
     maxHeight := 0
     wobblyMode := false
@@ -422,46 +454,63 @@ func RenderPara( f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8
                 if wobblyMode {
                     ytweak = int(math.Sin(float64(xpos))*5.0)
                 }
-                img := DrawStringRGBA(f.FontSize, *f.Colour, v)
+                img, face := DrawStringRGBA(f.FontSize, *f.Colour, v)
                 XmaX, YmaX := img.Bounds().Max.X, img.Bounds().Max.Y
                 //imgBytes := Rotate270(XmaX, YmaX, img.Pix)
                 //XmaX, YmaX = YmaX, XmaX
                 imgBytes := img.Pix
-                letterWidth := XmaX
-                letterHeight := YmaX
+                fa := *face
+                glyph, _ := utf8.DecodeRuneInString(v)
+                letterWidth_F, _ := fa.GlyphAdvance(glyph)
+                letterWidth := fixed2int(letterWidth_F)
+                //fuckedRect, _, _ := fa.GlyphBounds(glyph)
+                //letterHeight := fixed2int(fuckedRect.Max.Y)
+                letterHeight := fixed2int(fa.Metrics().Height)
+                //letterWidth = XmaX
+                //letterHeight = letterHeight
 
-                if xpos + letterWidth > maxX {
+                if xpos + XmaX > maxX {
                     ypos = ypos + maxHeight
                     maxHeight=0
                     xpos = orig_xpos
                     f.Line++
                     f.StartLinePos = i
                 }
-                if ypos +  letterHeight + ytweak + 1 > maxY {
+
+                if ypos +  YmaX + ytweak + 1 > maxY {
                     f.LastDrawnCharPos = i-1
                     return
                 }
+
                 if doDraw {
                     //PasteImg(img, xpos, ypos + ytweak, u8Pix, transparent)
                     PasteBytes(XmaX, YmaX, imgBytes, xpos, ypos + ytweak, int(clientWidth), int(clientHeight), u8Pix, transparent)
                 }
+
                 if f.Cursor == i && showCursor {
                     drawCursor(xpos, ypos, u8Pix)
                 }
+
                 f.LastDrawnCharPos = i
                 maxHeight = MaxI(maxHeight, letterHeight)
                 //xpos = xpos+ po2/2
                 newXpos := xpos
                 newYpos := ypos
-                for ii:=0; ii<letterWidth; ii++ {
-                    newXpos =  newXpos + xAdv
-                    newYpos =  newYpos + yAdv
-                }
+                //for ii:=0; ii<letterWidth; ii++ {
+                    //newXpos =  newXpos + xAdv
+                    //newYpos =  newYpos + yAdv
+                //}
+
                 xpos = newXpos
                 ypos = newYpos
+
+                xpos += letterWidth
+                //log2Buff(fmt.Sprintf("Xadv: %v, Yadv: %v\n", XmaX, YmaX ))
+                //log.Printf("Xadv: %v, Yadv: %v\n", XmaX, YmaX )
             }
         }
     }
+    sanityCheck(f,text)
 }
 
 
@@ -473,7 +522,7 @@ func MaxI(a, b int) int {
 }
 
 
-//PasteBytes 
+//PasteBytes
 //
 // Takes a bag of bytes, and some dimensions, and pastes it into another bag of bytes
 func PasteBytes(srcWidth, srcHeight int, srcBytes []byte, xpos, ypos, dstWidth, dstHeight int, u8Pix []uint8, transparent bool) {
@@ -486,9 +535,14 @@ func PasteBytes(srcWidth, srcHeight int, srcBytes []byte, xpos, ypos, dstWidth, 
             for j := 0;j<srcWidth; j++ {
                 srcOff := i*srcWidth*4 + j*4
                 dstOff := (ypos+i)*dstWidth*bpp+xpos*bpp+j*bpp
+                // if(i==j) {
+                //     u8Pix[dstOff] = 255
+                //     u8Pix[dstOff+3] = 255
+                // }
                     if (srcBytes[i*srcWidth*4 + j*4]>u8Pix[(ypos+i)*dstWidth*bpp+xpos*bpp+j*bpp]) {
-                        log.Printf("Source: (%v,%v), destination: (%v,%v)\n", j,i,xpos+j, ypos+i)
-                        copy(u8Pix[dstOff:dstOff+4], srcBytes[srcOff:srcOff+4])
+                        //log2Buff(fmt.Sprintf("Source: (%v,%v), destination: (%v,%v)\n", j,i,xpos+j, ypos+i))
+                          copy(u8Pix[dstOff:dstOff+4], srcBytes[srcOff:srcOff+4])
+
                     }
             }
         } else {
@@ -522,7 +576,7 @@ func PasteImg(img *image.RGBA, xpos, ypos int, u8Pix []uint8, transparent bool) 
 
 
 func PasteText(tSize float64, xpos, ypos int, text string, u8Pix []uint8, transparent bool) {
-    img := DrawStringRGBA(tSize, color.RGBA{255,255,255,255}, text)
+    img, _ := DrawStringRGBA(tSize, color.RGBA{255,255,255,255}, text)
     po2 := uint(MaxI(NextPo2(img.Bounds().Max.X), NextPo2(img.Bounds().Max.Y)))
     //log.Printf("Chose texture size: %v\n", po2)
     wordBuff := paintTexture (img, nil, po2)

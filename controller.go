@@ -104,7 +104,7 @@ func saveFile(fname string, txt string ) {
     err := ioutil.WriteFile(fname, []byte(txt), 0644)
     check(err, "saving file")
 }
-        
+
 func check(e error, msg string) {
     if e != nil {
         log.Println("Error while ", msg, " : ", e)
@@ -267,7 +267,7 @@ func handleEvent(a app.App, i interface{}) {
             }
             switch e.Rune {
                 case 'L':
-                    go startSshConn(1, "jprice", "", "jprice-bookadmin.dev.booking.com:22")
+                    go startSshConn(1, "", "", "")
                 case 'n':
                     gc.ActiveBufferId ++
                     if gc.ActiveBufferId>len(gc.BufferList)-1 {
@@ -302,6 +302,11 @@ func handleEvent(a app.App, i interface{}) {
                     gc.ActiveBuffer.Formatter.TailBuffer = true
                 case 'W':
                 case 'S':
+                case '+':
+                  gc.ActiveBuffer.Formatter.FontSize += 1
+                case '-':
+                  gc.ActiveBuffer.Formatter.FontSize -= 1
+
             }
         }
     }
@@ -314,4 +319,3 @@ func handleEvent(a app.App, i interface{}) {
     }
     dumpBuffer(gc.ActiveBuffer)
 }
-
