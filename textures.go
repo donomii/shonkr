@@ -248,6 +248,10 @@ func DrawStringRGBA(txtSize float64, fontColor color.RGBA, txt string) *image.RG
     }
     d.DrawString(txt)
     renderCache[cacheKey] = rgba
+    //imgBytes := rgba.Pix
+    //for i,v := range imgBytes {
+       //imgBytes[i] = 255 - v
+    //}
     return rgba
 }
 
@@ -313,7 +317,7 @@ func searchBackPage(txtBuf string, orig_f *FormatParams) int {
     input := *orig_f
     x:= input.StartLinePos
     newLastDrawn := input.LastDrawnCharPos
-    for x=input.StartLinePos; x>0 && input.FirstDrawnCharPos < newLastDrawn ; x=scanToPrevLine (txtBuf, x) {
+    for x=input.Cursor; x>0 && input.FirstDrawnCharPos < newLastDrawn ; x=scanToPrevLine (txtBuf, x) {
         f := input
         f.FirstDrawnCharPos=x
         RenderPara(&f, 0,0,screenWidth,screenHeight, nil, txtBuf, false, false, false)
@@ -323,35 +327,39 @@ func searchBackPage(txtBuf string, orig_f *FormatParams) int {
 }
 
 //Check and correct formatparams to make sure e.g. cursor is always on the screen
-func sanityCheck(f *FormatParams) {
+func sanityCheck(f *FormatParams, txt string) {
     if f.Cursor < 0 {
         f.Cursor =  0
+    }
+    if f.Cursor >= len(txt)-1 {
+        f.Cursor = len(txt)-1
     }
 }
 
 func RenderPara( f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8, text string, transparent bool, doDraw bool, showCursor bool) {
     if f.TailBuffer {
-        f.Cursor = len(text)
-        scrollToCursor(f, text)  //Use pageup function, once it is fast enough
+        //f.Cursor = len(text)
+        //scrollToCursor(f, text)  //Use pageup function, once it is fast enough
     }
     //log.Printf("Cursor: %v\n", f.Cursor)
     letters := strings.Split(text, "")
     letters = append(letters, " ")
     xpos := orig_xpos
+    xAdv := 1
+    yAdv := 0
+    //lfX :=0
+    //lfY := 1
     orig_fontSize := f.FontSize
     defer func(){
         f.FontSize=orig_fontSize
-        if f.Cursor >= len(letters)-1 {
-            f.Cursor = len(letters)-1
-        }
-        sanityCheck(f)
+        //sanityCheck(f,text)
     }()
     maxHeight := 0
     wobblyMode := false
     if f.Cursor > len(letters) {
         f.Cursor = len(letters)
     }
-    sanityCheck(f)
+    //sanityCheck(f,txt)
     for i, v := range letters {
         if i<f.FirstDrawnCharPos {
             continue
@@ -368,10 +376,10 @@ func RenderPara( f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8
                 f.FontSize = f.FontSize*1.2
                 //log.Printf("Oversize start for %v at %v\n", v, i)
             } else {
-                f.Colour = &color.RGBA{255,255,255,255}
+                f.Colour = &color.RGBA{1,1,1,255}
             }
         } else {
-            f.Colour = &color.RGBA{255,255,255,255}
+            f.Colour = &color.RGBA{1,1,1,255}
         }
         if (string(text[i]) == " ") || (string(text[i]) == "\n") {
             f.FontSize = orig_fontSize
@@ -383,29 +391,35 @@ func RenderPara( f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8
             xpos = orig_xpos
             f.Line++
             f.StartLinePos = i
+            if f.Cursor == i && showCursor {
+                drawCursor(xpos, ypos, u8Pix)
+            }
         } else {
             //if f.Cursor <= f.Line {
             //if f.Cursor >= f.FirstDrawnCharPos {
+            if i >= f.FirstDrawnCharPos {
+                ytweak :=0
+                if wobblyMode {
+                    ytweak = int(math.Sin(float64(xpos))*5.0)
+                }
                 img := DrawStringRGBA(f.FontSize, *f.Colour, v)
                 XmaX, YmaX := img.Bounds().Max.X, img.Bounds().Max.Y
                 //imgBytes := Rotate270(XmaX, YmaX, img.Pix)
+                //XmaX, YmaX = YmaX, XmaX
                 imgBytes := img.Pix
-                po2 := MaxI(NextPo2(img.Bounds().Max.X), NextPo2(img.Bounds().Max.Y))
+                letterWidth := XmaX
+                letterHeight := YmaX
 
-                if xpos + po2 > maxX {
+                if xpos + letterWidth > maxX {
                     ypos = ypos + maxHeight
-                    //maxHeight=0
+                    maxHeight=0
                     xpos = orig_xpos
                     f.Line++
                     f.StartLinePos = i
                 }
-                if ypos + po2 > maxY {
+                if ypos +  letterHeight + ytweak + 1 > maxY {
                     f.LastDrawnCharPos = i-1
                     return
-                }
-                ytweak :=0
-                if wobblyMode {
-                    ytweak = int(math.Sin(float64(xpos))*5.0)
                 }
                 if doDraw {
                     //PasteImg(img, xpos, ypos + ytweak, u8Pix, transparent)
@@ -414,9 +428,18 @@ func RenderPara( f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8
                 if f.Cursor == i && showCursor {
                     drawCursor(xpos, ypos, u8Pix)
                 }
-                maxHeight = MaxI(maxHeight, po2)
-                xpos = xpos+ po2/2
-            //}
+                f.LastDrawnCharPos = i
+                maxHeight = MaxI(maxHeight, letterHeight)
+                //xpos = xpos+ po2/2
+                newXpos := xpos
+                newYpos := ypos
+                for ii:=0; ii<letterWidth; ii++ {
+                    newXpos =  newXpos + xAdv
+                    newYpos =  newYpos + yAdv
+                }
+                xpos = newXpos
+                ypos = newYpos
+            }
         }
     }
 }
@@ -434,25 +457,25 @@ func MaxI(a, b int) int {
 //
 // Takes a bag of bytes, and some dimensions, and pastes it into another bag of bytes
 func PasteBytes(srcWidth, srcHeight int, srcBytes []byte, xpos, ypos, dstWidth, dstHeight int, u8Pix []uint8, transparent bool) {
-    //log.Printf("Copying source image (%v,%v) into destination image (%v,%v) at point (%v, %v)\n", srcWidth, srcHeight, dstWidth, dstHeight, xpos, ypos)
+   //log.Printf("Copying source image (%v,%v) into destination image (%v,%v) at point (%v, %v)\n", srcWidth, srcHeight, dstWidth, dstHeight, xpos, ypos)
     startDrawing = true
     bpp := 4  //bytes per pixel
 
     for i:=0;i<srcHeight; i++ {
-        for j := 0;j<srcWidth; j++ {
-            srcOff := i*srcWidth*4 + j*4
-            dstOff := (ypos+i)*dstWidth*bpp+xpos*bpp+j*bpp
-            if transparent {
-                if (srcBytes[i*srcWidth*4 + j*4]>u8Pix[(ypos+i)*dstWidth*bpp+xpos*bpp+j*bpp]) {
-                    u8Pix[(ypos+i)*dstWidth*bpp+xpos*bpp+j*bpp]    = srcBytes[i*srcWidth*bpp + j*bpp]
-                    u8Pix[(ypos+i)*dstWidth*bpp+xpos*bpp+j*bpp +1] = srcBytes[i*srcWidth*bpp + j*bpp +1]
-                    u8Pix[(ypos+i)*dstWidth*bpp+xpos*bpp+j*bpp +2] = srcBytes[i*srcWidth*bpp + j*bpp +2]
-                    u8Pix[(ypos+i)*dstWidth*bpp+xpos*bpp+j*bpp +3] = srcBytes[i*srcWidth*bpp + j*bpp +3]
-                }
-            } else {
-                copy(u8Pix[dstOff:dstOff+4], srcBytes[srcOff:srcOff+4])  //FIXME move this outside the line loop so we can copy entire lines in one call
+        if transparent {
+            for j := 0;j<srcWidth; j++ {
+                srcOff := i*srcWidth*4 + j*4
+                dstOff := (ypos+i)*dstWidth*bpp+xpos*bpp+j*bpp
+                    if (srcBytes[i*srcWidth*4 + j*4]>u8Pix[(ypos+i)*dstWidth*bpp+xpos*bpp+j*bpp]) {
+                        log.Printf("Source: (%v,%v), destination: (%v,%v)\n", j,i,xpos+j, ypos+i)
+                        copy(u8Pix[dstOff:dstOff+4], srcBytes[srcOff:srcOff+4])
+                    }
             }
-        }
+        } else {
+                srcOff := i*srcWidth*4
+                dstOff := (ypos+i)*dstWidth*bpp+xpos*bpp
+                copy(u8Pix[dstOff:dstOff+4*srcWidth], srcBytes[srcOff:srcOff+4*srcWidth])  //FIXME move this outside the line loop so we can copy entire lines in one call
+            }
     }
 }
 
@@ -514,8 +537,8 @@ func Rotate270( srcW, srcH int, src []byte) []byte {
         for dstY := 0; dstY < dstH; dstY++ {
             for dstX := 0; dstX < dstW; dstX++ {
                 srcX := dstY
-                //srcY := dstW - dstX - 1
-                srcY := dstX
+                srcY := dstW - dstX - 1
+                //srcY := dstX
 
                 srcOff := srcY*srcW*4 + srcX*4
                 dstOff := dstY*dstW*4 + dstX*4

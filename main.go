@@ -335,7 +335,7 @@ func reDimBuff(x,y int) {
 var fname string
 
 func NewFormatter() *FormatParams{
-    return &FormatParams{&color.RGBA{255,255,255,255},0,0,0, 24.0,0,0, false}
+    return &FormatParams{&color.RGBA{1,1,1,255},0,0,0, 40.0,0,0, false}
 }
 
 func NewBuffer() *Buffer{
@@ -438,7 +438,7 @@ func onPaint(glctx gl.Context, sz size.Event) {
     glctx.DepthFunc( gl.LEQUAL );
     glctx.DepthMask(true)
     glctx.Clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT)
-    glctx.ClearColor(0, 0, 0, 1)
+    glctx.ClearColor(255,255,255,255)
     glctx.UseProgram(program)
 
 

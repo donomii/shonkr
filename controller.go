@@ -24,21 +24,68 @@ func handleSensor(e sensor.Event) {
 	log.Println(e)
 }
 
-func scanToPrevLine (txt string, c int) int{
+func scanToPrevPara (txt string, c int) int{
+    log.Println("To Previous Line")
     letters := strings.Split(txt, "")
     x:=c
     for x= c-1; x>1 && x<len(txt) && !( letters[x-1]== "\n" && letters[x]!="\n"); x-- {}
     return x
 }
 
-func scanToNextLine (txt string, c int) int{
+func scanToPrevLine (txt string, c int) int{
+    log.Println("To Previous Line")
+    letters := strings.Split(txt, "")
+    x:=c
+    for x=c-1; x>1 && x<len(txt) && !( letters[x-1]== "\n"); x-- {}
+    return x
+}
+
+func is_space (l string) bool{
+    if (
+        (l == " ") ||
+        (l == "\n") ||
+        (l == "\t")) {
+        return true
+    }
+    return false
+}
+
+func SOL (txt string, c int) int{
+    if (c==0) {
+        return c
+    }
+    letters := strings.Split(txt, "")
+    if (letters[c-1] == "\n") {
+        return c
+    }
+    s := scanToPrevLine(txt, c)
+    return s
+}
+func SOT (txt string, c int) int{  //Start of Text
+    s := SOL(txt, c)
+    letters := strings.Split(txt, "")
+    x:=c
+    for x=s; x>1 && x<len(txt) && (is_space(letters[x])); x++ {}
+    return x
+}
+
+func scanToNextPara (txt string, c int) int{
     letters := strings.Split(txt, "")
     x:=c
     for x= c+1; x>1 && x<len(txt) && !( letters[x-1]== "\n" && letters[x]!="\n"); x++ {}
     return x
 }
 
+func scanToNextLine (txt string, c int) int{
+    letters := strings.Split(txt, "")
+    x:=c
+    for x= c+1; x>1 && x<len(txt) && !( letters[x-1]== "\n"); x++ {}
+    return x
+}
+
+
 func scanToEndOfLine (txt string, c int) int{
+    log.Println("To EOL")
     letters := strings.Split(txt, "")
     x:=c
     for x= c+1; x>0 && x<len(txt) && !( letters[x]== "\n"); x++ {}
@@ -46,6 +93,7 @@ func scanToEndOfLine (txt string, c int) int{
 }
 
 func deleteLeft(t string, p int) string {
+    log.Println("Delete left")
     if (p>0) {
         return strings.Join([]string{t[:p-1],t[p:]}, "")
     }
@@ -64,11 +112,13 @@ func check(e error, msg string) {
 }
 
 func scrollToCursor(f *FormatParams, txt string) {
+    log.Printf("Scrolling to cursor")
     cursor := f.Cursor
     for i:=0; i<5; i++ {
         cursor = scanToPrevLine(txt, cursor)
     }
 
+    log.Printf("Scrolling to cursor at\n")
     f.FirstDrawnCharPos = cursor
     //start := searchBackPage(buf.Text, buf.Formatter)
 }
@@ -150,6 +200,7 @@ func pageDown(buf *Buffer) {
 }
 
 func pageUp(buf *Buffer) {
+    log.Println("Page up")
     start := searchBackPage(buf.Data.Text, buf.Formatter)
     log.Println("New start at ", start)
     buf.Formatter.FirstDrawnCharPos = start
@@ -165,6 +216,10 @@ func handleEvent(a app.App, i interface{}) {
                     gc.ActiveBuffer.Data.Text = deleteLeft(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
                     gc.ActiveBuffer.Formatter.Cursor--
                 }
+            case key.CodeHome:
+                gc.ActiveBuffer.Formatter.Cursor = SOL(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
+            case key.CodeEnd:
+                   gc.ActiveBuffer.Formatter.Cursor = scanToEndOfLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
             case key.CodeLeftArrow:
                 gc.ActiveBuffer.Formatter.Cursor = gc.ActiveBuffer.Formatter.Cursor-1
             case key.CodeRightArrow:
@@ -181,8 +236,8 @@ func handleEvent(a app.App, i interface{}) {
                     //if gc.ActiveBuffer.Line < 0 { gc.ActiveBuffer.Line = 0 }
                     //Page up
                     pageUp(gc.ActiveBuffer)
-   }
-        if gc.ActiveBuffer.InputMode {
+            default:
+       if gc.ActiveBuffer.InputMode {
             switch e.Code {
             case key.CodeLeftShift:
             case key.CodeRightShift:
@@ -227,6 +282,10 @@ func handleEvent(a app.App, i interface{}) {
                     saveFile(gc.ActiveBuffer.Data.FileName, gc.ActiveBuffer.Data.Text)
                 case 'i':
                    gc.ActiveBuffer.InputMode = true
+                case '0':
+                   gc.ActiveBuffer.Formatter.Cursor = SOL(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
+                case '^':
+                   gc.ActiveBuffer.Formatter.Cursor = SOT(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
                 case '$':
                    gc.ActiveBuffer.Formatter.Cursor = scanToEndOfLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
                 case 'A':
@@ -245,10 +304,13 @@ func handleEvent(a app.App, i interface{}) {
                 case 'S':
             }
         }
+    }
 
 	}
     if gc.ActiveBuffer.Formatter.Cursor > gc.ActiveBuffer.Formatter.LastDrawnCharPos {
-        gc.ActiveBuffer.Formatter.FirstDrawnCharPos = scanToNextLine (gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.FirstDrawnCharPos)
+        log.Println("Advancing screen to cursor")
+        //gc.ActiveBuffer.Formatter.FirstDrawnCharPos = scanToNextLine (gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.FirstDrawnCharPos)
+        //gc.ActiveBuffer.Formatter.FirstDrawnCharPos = scanToPrevLine (gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
     }
     dumpBuffer(gc.ActiveBuffer)
 }
