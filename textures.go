@@ -5,9 +5,10 @@ import "math"
 import (
     "unicode"
     "strings"
-    sysFont "golang.org/x/mobile/exp/font"
+    //sysFont "golang.org/x/mobile/exp/font"
     "io/ioutil"
-    "bytes"
+    //"bytes"
+    "io"
     "golang.org/x/image/font"
     "golang.org/x/image/math/fixed"
 "github.com/golang/freetype/truetype"
@@ -257,9 +258,28 @@ func DrawStringRGBA(txtSize float64, fontColor color.RGBA, txt string) *image.RG
 
 func LoadGameFont(fileName string) *truetype.Font {
 
-        fontBytes := sysFont.Monospace()
+        //fontBytes := sysFont.Monospace()
         //fontBytes := sysFont.Default()
-        f := bytes.NewReader(fontBytes)
+        //f := bytes.NewReader(fontBytes)
+
+        var f io.Reader
+        if len(fileName) <= 0 {
+            file, err := os.Open("f1.ttf")
+            if err != nil {
+                log.Fatal(err)
+            }
+            defer file.Close()
+            f = file
+        } else {
+            log.Println(fileName)
+            file, err := os.Open(fileName)
+            if err != nil {
+                log.Fatal(err)
+            }
+            defer file.Close()
+            f = file
+
+        }
         fontBytes, err := ioutil.ReadAll(f)
         if err != nil {
             log.Println(err)
