@@ -245,25 +245,27 @@ func DrawStringRGBA(txtSize float64, fontColor color.RGBA, txt string) (*image.R
         Src: image.NewUniform(fontColor), // 字体颜色
         Face: truetype.NewFace(txtFont, &truetype.Options{
             Size:    txtSize,
-            DPI:     512,
+            DPI:     256,
             Hinting: font.HintingNone,
         }),
     }
-    // fface := d.Face
-    // glyph, _ := utf8.DecodeRuneInString(txt)
-    // fuckedRect, _, _ := fface.GlyphBounds(glyph)
+    fface := d.Face
+    glyph, _ := utf8.DecodeRuneInString(txt)
+    fuckedRect, _, _ := fface.GlyphBounds(glyph)
     // letterWidth := fixed2int(fuckedRect.Max.X)
+    Xadj := fixed2int(fuckedRect.Min.X)
+    if Xadj<0 { Xadj = Xadj * -1 }
     // fuckedRect, _, _ = fface.GlyphBounds(glyph)
     // letterHeight := fixed2int(fuckedRect.Max.Y)
     //
-    rect := image.Rect(0, 0, d.MeasureString(txt).Ceil(), int(txtSize*16))
+    rect := image.Rect(0, 0, d.MeasureString(txt).Ceil()*2, int(txtSize)*16)
     //rect := image.Rect(0, 0, 30, 30)
     rgba := image.NewRGBA(rect)
     d.Dst = rgba
 
     d.Dot = fixed.Point26_6{
-        X: fixed.I(0),
-        Y: fixed.I(rect.Max.Y/3), //rect.Max.Y*2/3),
+        X: fixed.I(Xadj),
+        Y: fixed.I(rect.Max.Y/3), //fixed.I(rect.Max.Y/3), //rect.Max.Y*2/3),
     }
     d.DrawString(txt)
     renderCache[cacheKey] = rgba
@@ -470,8 +472,10 @@ func RenderPara( f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8
                 glyph, _ := utf8.DecodeRuneInString(v)
                 letterWidth_F, _ := fa.GlyphAdvance(glyph)
                 letterWidth := fixed2int(letterWidth_F)
-                //fuckedRect, _, _ := fa.GlyphBounds(glyph)
+                fuckedRect, _, _ := fa.GlyphBounds(glyph)
                 //letterHeight := fixed2int(fuckedRect.Max.Y)
+                backup := -fixed2int(fuckedRect.Min.X)
+                //log.Printf("backwards: %v\n", backup)
                 letterHeight := fixed2int(fa.Metrics().Height)
                 //letterWidth = XmaX
                 //letterHeight = letterHeight
@@ -491,7 +495,12 @@ func RenderPara( f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8
 
                 if doDraw {
                     //PasteImg(img, xpos, ypos + ytweak, u8Pix, transparent)
-                    PasteBytes(XmaX, YmaX, imgBytes, xpos, ypos + ytweak, int(clientWidth), int(clientHeight), u8Pix, transparent)
+                    if xpos - backup >0 {
+                        PasteBytes(XmaX, YmaX, imgBytes, xpos-backup, ypos + ytweak, int(clientWidth), int(clientHeight), u8Pix, transparent)
+                    } else {
+                        log.Printf("Letter %v will not fit at %v\n", v, xpos)
+                        PasteBytes(XmaX, YmaX, imgBytes, xpos, ypos + ytweak, int(clientWidth), int(clientHeight), u8Pix, transparent)
+                    }
                 }
 
                 if f.Cursor == i && showCursor {

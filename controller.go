@@ -101,8 +101,10 @@ func deleteLeft(t string, p int) string {
 }
 
 func saveFile(fname string, txt string ) {
+    log2Buff(fmt.Sprintf("Saving: %v",fname))
     err := ioutil.WriteFile(fname, []byte(txt), 0644)
     check(err, "saving file")
+    log2Buff(fmt.Sprintf("File saved: %v",fname))
 }
 
 func check(e error, msg string) {
@@ -208,6 +210,7 @@ func pageUp(buf *Buffer) {
 }
 func handleEvent(a app.App, i interface{}) {
 	log.Println(i)
+    dumpBuffer(gc.ActiveBuffer)
 	switch e := a.Filter(i).(type) {
 	case key.Event:
      switch e.Code {
@@ -268,14 +271,14 @@ func handleEvent(a app.App, i interface{}) {
             switch e.Rune {
                 case 'L':
                     go startSshConn(1, "", "", "")
-                case 'n':
+                case 'N':
                     gc.ActiveBufferId ++
                     if gc.ActiveBufferId>len(gc.BufferList)-1 {
                         gc.ActiveBufferId = 0
                     }
                     gc.ActiveBuffer = gc.BufferList[gc.ActiveBufferId]
                     log.Printf("Next buffer: %v", gc.ActiveBufferId)
-                case 'v':
+                case 'V':
                     text, _ := clipboard.ReadAll()
                     gc.ActiveBuffer.Data.Text = fmt.Sprintf("%s%s%s",gc.ActiveBuffer.Data.Text[:gc.ActiveBuffer.Formatter.Cursor], text,gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.Cursor:])
                 case '~':
@@ -294,10 +297,14 @@ func handleEvent(a app.App, i interface{}) {
                 case 'a':
                    gc.ActiveBuffer.Formatter.Cursor++
                    gc.ActiveBuffer.InputMode = true
-                case 'w':
+                case 'k':
                     gc.ActiveBuffer.Formatter.Cursor = scanToPrevLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
-                case 's':
+                case 'j':
                     gc.ActiveBuffer.Formatter.Cursor = scanToNextLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
+                case 'l':
+                   gc.ActiveBuffer.Formatter.Cursor++
+                case 'h':
+                   gc.ActiveBuffer.Formatter.Cursor--
                 case 'T':
                     gc.ActiveBuffer.Formatter.TailBuffer = true
                 case 'W':
@@ -308,6 +315,8 @@ func handleEvent(a app.App, i interface{}) {
                   gc.ActiveBuffer.Formatter.FontSize -= 1
                 case 'B':
                   clearAllCaches()
+                  log2Buff("Caches cleared")
+                  log.Println("Caches cleared")
 
             }
         }
@@ -319,5 +328,4 @@ func handleEvent(a app.App, i interface{}) {
         //gc.ActiveBuffer.Formatter.FirstDrawnCharPos = scanToNextLine (gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.FirstDrawnCharPos)
         //gc.ActiveBuffer.Formatter.FirstDrawnCharPos = scanToPrevLine (gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
     }
-    dumpBuffer(gc.ActiveBuffer)
 }
