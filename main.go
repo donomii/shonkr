@@ -185,12 +185,23 @@ To edit a file, start shonkr from the command line:
 
 shonkr has two modes, like Vi - a movement/editing mode, and an insert mode
 
-Press  to leave insert mode.  You can then use (a small number) of the usual Vi keys
+Press Escape to leave insert mode.  You can then use (a small number) of the usual Vi keys
+
+N Next Buffer
+V Paste text from Clipboard
+~ Save File
+
++ Increase font size
+- Decrease font size
 
 i - insert
 a - insert after next letter
 A - insert at EOL
 $ - Skip to EOL
+0   Start of line
+^   Start of text on line
+
+B Clear all caches
 `;
     log.Printf("Starting main...")
     sceneCam = sceneCamera.New()

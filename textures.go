@@ -228,51 +228,53 @@ func clearAllCaches() {
 	faceCache = map[string]*font.Face{}
 }
 func DrawStringRGBA(txtSize float64, fontColor color.RGBA, txt string) (*image.RGBA, *font.Face) {
-	cacheKey := fmt.Sprintf("%v,%v,%v", txtSize, fontColor, txt)
-	if renderCache == nil {
-		renderCache = map[string]*image.RGBA{}
-	}
-	if faceCache == nil {
-		faceCache = map[string]*font.Face{}
-	}
-	im, ok := renderCache[cacheKey]
-	face, ok1 := faceCache[cacheKey]
-	if ok && ok1 {
-		return im, face
-	}
-	txtFont := LoadGameFont("f1.ttf")
-	d := &font.Drawer{
-		Src: image.NewUniform(fontColor), // 字体颜色
-		Face: truetype.NewFace(txtFont, &truetype.Options{
-			Size:    txtSize,
-			DPI:     512,
-			Hinting: font.HintingNone,
-		}),
-	}
-	// fface := d.Face
-	// glyph, _ := utf8.DecodeRuneInString(txt)
-	// fuckedRect, _, _ := fface.GlyphBounds(glyph)
-	// letterWidth := fixed2int(fuckedRect.Max.X)
-	// fuckedRect, _, _ = fface.GlyphBounds(glyph)
-	// letterHeight := fixed2int(fuckedRect.Max.Y)
-	//
-	rect := image.Rect(0, 0, d.MeasureString(txt).Ceil(), int(txtSize*16))
-	//rect := image.Rect(0, 0, 30, 30)
-	rgba := image.NewRGBA(rect)
-	d.Dst = rgba
+    cacheKey := fmt.Sprintf("%v,%v,%v", txtSize, fontColor, txt)
+    if renderCache == nil {
+        renderCache = map[string]*image.RGBA{}
+    }
+    if faceCache == nil {
+        faceCache = map[string]*font.Face{}
+    }
+    im, ok := renderCache[cacheKey]
+    face, ok1 := faceCache[cacheKey]
+    if ok && ok1 {
+        return im, face
+    }
+    txtFont := LoadGameFont("f1.ttf")
+    d := &font.Drawer{
+        Src: image.NewUniform(fontColor), // 字体颜色
+        Face: truetype.NewFace(txtFont, &truetype.Options{
+            Size:    txtSize,
+            DPI:     256,
+            Hinting: font.HintingNone,
+        }),
+    }
+    fface := d.Face
+    glyph, _ := utf8.DecodeRuneInString(txt)
+    fuckedRect, _, _ := fface.GlyphBounds(glyph)
+    // letterWidth := fixed2int(fuckedRect.Max.X)
+    Xadj := fixed2int(fuckedRect.Min.X)
+    if Xadj<0 { Xadj = Xadj * -1 }
+    // fuckedRect, _, _ = fface.GlyphBounds(glyph)
+    // letterHeight := fixed2int(fuckedRect.Max.Y)
+    //
+    rect := image.Rect(0, 0, d.MeasureString(txt).Ceil()*2, int(txtSize)*16)
+    //rect := image.Rect(0, 0, 30, 30)
+    rgba := image.NewRGBA(rect)
+    d.Dst = rgba
 
-	d.Dot = fixed.Point26_6{
-		X: fixed.I(0),
-		Y: fixed.I(rect.Max.Y / 3), //rect.Max.Y*2/3),
-	}
-	d.DrawString(txt)
-	renderCache[cacheKey] = rgba
-	faceCache[cacheKey] = &d.Face
-	//imgBytes := rgba.Pix
-	//for i,v := range imgBytes {
-	//imgBytes[i] = 255 - v
-	//}
-	return rgba, &d.Face
+    d.Dot = fixed.Point26_6{
+        X: fixed.I(Xadj),
+        Y: fixed.I(rect.Max.Y/3), //fixed.I(rect.Max.Y/3), //rect.Max.Y*2/3),
+    }
+    d.DrawString(txt)
+    renderCache[cacheKey] = rgba
+    faceCache[cacheKey] = &d.Face
+    //imgBytes := rgba.Pix
+    //for i,v := range imgBytes {
+       //imgBytes[i] = 255 - v
+    //}
+    return rgba, &d.Face
 }
 
 func LoadGameFont(fileName string) *truetype.Font {
@@ -401,6 +403,7 @@ func fixed2int(n fixed.Int26_6) int {
 func log2Buff(s string) {
 	gc.BufferList[1].Data.Text = s
 }
+
 
 func RenderPara(f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8, text string, transparent bool, doDraw bool, showCursor bool) {
 	if f.TailBuffer {
