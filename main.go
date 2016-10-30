@@ -337,7 +337,7 @@ func reDimBuff(x,y int) {
 var fname string
 
 func NewFormatter() *FormatParams{
-    return &FormatParams{&color.RGBA{1,1,1,255},0,0,0, 15.0,0,0, false}
+    return &FormatParams{&color.RGBA{1,1,1,255},0,0,0, 4.0,0,0, false}
 }
 
 func NewBuffer() *Buffer{
@@ -497,12 +497,12 @@ func onPaint(glctx gl.Context, sz size.Event) {
         u8Pix[i] = 0
     }
     RenderPara(gc.BufferList[1].Formatter, 5, 5, screenWidth, screenHeight, u8Pix, gc.BufferList[1].Data.Text, true, true, false)
-    
+
     //for i:=1 ; i<len(u8Pix)-1; i++ {
         //outBytes[i] = u8Pix[i] // (u8Pix[i-1] + 2*u8Pix[i] +u8Pix[i+1])/4
     //}
 
-    
+
     glctx.TexImage2D(gl.TEXTURE_2D, 0, int(clientWidth), int(clientHeight), gl.RGBA, gl.UNSIGNED_BYTE, u8Pix)
     glctx.Viewport(sz.WidthPx/2,0, sz.WidthPx/2, sz.HeightPx)
     glctx.DrawArrays(gl.TRIANGLES, 0, 6)
