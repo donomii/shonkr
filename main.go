@@ -348,7 +348,7 @@ func reDimBuff(x,y int) {
 var fname string
 
 func NewFormatter() *FormatParams{
-    return &FormatParams{&color.RGBA{1,1,1,255},0,0,0, 4.0,0,0, false}
+    return &FormatParams{&color.RGBA{1,1,1,255},0,0,0, 6.0,0,0, false}
 }
 
 func NewBuffer() *Buffer{

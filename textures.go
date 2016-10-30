@@ -258,7 +258,7 @@ func DrawStringRGBA(txtSize float64, fontColor color.RGBA, txt string) (*image.R
     // fuckedRect, _, _ = fface.GlyphBounds(glyph)
     // letterHeight := fixed2int(fuckedRect.Max.Y)
     //
-    rect := image.Rect(0, 0, d.MeasureString(txt).Ceil()*2, int(txtSize)*16)
+    rect := image.Rect(0, 0, d.MeasureString(txt).Ceil()*2, int(txtSize)*8)
     //rect := image.Rect(0, 0, 30, 30)
     rgba := image.NewRGBA(rect)
     d.Dst = rgba
@@ -350,10 +350,10 @@ type FormatParams struct {
 	TailBuffer        bool
 }
 
-func drawCursor(xpos, ypos int, u8Pix []byte) {
+func drawCursor(xpos, ypos, height int, u8Pix []byte) {
 	colour := byte(0)
 	for xx := int(0); xx < 3; xx++ {
-		for yy := int(0); yy < 20; yy++ {
+		for yy := int(0); yy < height; yy++ {
 			offset := uint(yy+ypos)*clientWidth*4 + uint(xx+xpos)*4
 			//log.Printf("Drawpos: %v", offset)
 			if offset >= 0 && offset < uint(len(u8Pix)) {
@@ -434,7 +434,7 @@ func RenderPara(f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8,
 			continue
 		}
 		if (f.Cursor == i) && doDraw {
-			drawCursor(xpos, ypos, u8Pix)
+			drawCursor(xpos, ypos, maxHeight, u8Pix)
 		}
 		if i >= len(letters)-1 {
 			continue
@@ -462,7 +462,7 @@ func RenderPara(f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8,
 			f.Line++
 			f.StartLinePos = i
 			if f.Cursor == i && showCursor {
-				drawCursor(xpos, ypos, u8Pix)
+				drawCursor(xpos, ypos, maxHeight, u8Pix)
 			}
 		} else {
 			//if f.Cursor <= f.Line {
@@ -506,7 +506,7 @@ func RenderPara(f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8,
 				}
 
 				if f.Cursor == i && showCursor {
-					drawCursor(xpos, ypos, u8Pix)
+					drawCursor(xpos, ypos, maxHeight, u8Pix)
 				}
 
 				f.LastDrawnCharPos = i
