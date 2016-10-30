@@ -223,6 +223,10 @@ func glGenTextureFromFramebuffer(glctx gl.Context, w, h int) (gl.Framebuffer, gl
 
 var renderCache map[string]*image.RGBA
 var faceCache map[string]*font.Face
+func clearAllCaches() {
+    renderCache = map[string]*image.RGBA{}
+    faceCache = map[string]*font.Face{}
+}
 func DrawStringRGBA(txtSize float64, fontColor color.RGBA, txt string) (*image.RGBA, *font.Face) {
     cacheKey := fmt.Sprintf("%v,%v,%v", txtSize, fontColor, txt)
     if renderCache == nil {
@@ -241,7 +245,7 @@ func DrawStringRGBA(txtSize float64, fontColor color.RGBA, txt string) (*image.R
         Src: image.NewUniform(fontColor), // 字体颜色
         Face: truetype.NewFace(txtFont, &truetype.Options{
             Size:    txtSize,
-            DPI:     288,
+            DPI:     512,
             Hinting: font.HintingNone,
         }),
     }
@@ -252,7 +256,7 @@ func DrawStringRGBA(txtSize float64, fontColor color.RGBA, txt string) (*image.R
     // fuckedRect, _, _ = fface.GlyphBounds(glyph)
     // letterHeight := fixed2int(fuckedRect.Max.Y)
     //
-    rect := image.Rect(0, 0, d.MeasureString(txt).Ceil(), int(txtSize*12))
+    rect := image.Rect(0, 0, d.MeasureString(txt).Ceil(), int(txtSize*16))
     //rect := image.Rect(0, 0, 30, 30)
     rgba := image.NewRGBA(rect)
     d.Dst = rgba
@@ -310,15 +314,17 @@ func LoadGameFont(fileName string) *truetype.Font {
 }
 
 func dumpBuffer(b *Buffer) {
-    fmt.Printf(`
+    log2Buff(fmt.Sprintf(`
 FileName: %v,
 Active Buffer: %v,
 StartChar: %v,
 LastChar: %v,
 Cursor: %v,
 Tail: %v,
-Font Size: %v
-`, b.Data.FileName, gc.ActiveBufferId,b.Formatter.FirstDrawnCharPos, b.Formatter.LastDrawnCharPos, b.Formatter.Cursor, b.Formatter.TailBuffer, b.Formatter.FontSize)
+Font Size: %v,
+Screen Width: %v,
+Screen Height: %v
+`, b.Data.FileName, gc.ActiveBufferId,b.Formatter.FirstDrawnCharPos, b.Formatter.LastDrawnCharPos, b.Formatter.Cursor, b.Formatter.TailBuffer, b.Formatter.FontSize, screenWidth, screenHeight))
 }
 
 
@@ -423,15 +429,16 @@ func RenderPara( f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8
             continue
         }
         if unicode.IsUpper([]rune(v)[0]) {
-            if i>0 && letters[i-1] == " " {
-                f.Colour = &color.RGBA{255,0,0,255}
-                f.FontSize = f.FontSize*1.2
-                //log.Printf("Oversize start for %v at %v\n", v, i)
-            } else {
-                f.Colour = &color.RGBA{1,1,1,255}
-            }
+            //if i>0 && letters[i-1] == " " {
+                //f.Colour = &color.RGBA{255,0,0,255}
+                //f.FontSize = f.FontSize*1.2
+                ////log.Printf("Oversize start for %v at %v\n", v, i)
+            //} else {
+                //f.Colour = &color.RGBA{1,1,1,255}
+            //}
+            f.Colour = &color.RGBA{255,1,1,255}
         } else {
-            f.Colour = &color.RGBA{1,1,1,255}
+            f.Colour = &color.RGBA{1,32,1,255}
         }
         if (string(text[i]) == " ") || (string(text[i]) == "\n") {
             f.FontSize = orig_fontSize
@@ -539,11 +546,39 @@ func PasteBytes(srcWidth, srcHeight int, srcBytes []byte, xpos, ypos, dstWidth, 
                 //     u8Pix[dstOff] = 255
                 //     u8Pix[dstOff+3] = 255
                 // }
+                r := srcBytes[srcOff+0]
+                g := srcBytes[srcOff+1]
+                b := srcBytes[srcOff+2]
+
+                dstR := u8Pix[srcOff+0]
+                dstG := u8Pix[srcOff+1]
+                dstB := u8Pix[srcOff+2]
+
+                srcA := srcBytes[srcOff+3]
+                dstA := u8Pix[dstOff+3]
+
+                outA := srcA +dstA*(1-srcA)
+
+
+                outR := byte(0)
+                outG := byte(0)
+                outB := byte(0)
+                if outA> 0 {
+                    outR = (r*srcA +dstR*dstA*(1-srcA))/outA
+                    outG = (g*srcA +dstG*dstA*(1-srcA))/outA
+                    outB = (b*srcA +dstB*dstA*(1-srcA))/outA
+                } else {
+                    outR = 0
+                    outG = 0 
+                    outB = 0
+                }
                     if (srcBytes[i*srcWidth*4 + j*4]>u8Pix[(ypos+i)*dstWidth*bpp+xpos*bpp+j*bpp]) {
                         //log2Buff(fmt.Sprintf("Source: (%v,%v), destination: (%v,%v)\n", j,i,xpos+j, ypos+i))
                           copy(u8Pix[dstOff:dstOff+4], srcBytes[srcOff:srcOff+4])
-
                     }
+                u8Pix[srcOff+0] = outR
+                u8Pix[srcOff+1] = outG
+                u8Pix[srcOff+2] = outB
             }
         } else {
                 srcOff := i*srcWidth*4

@@ -34,6 +34,7 @@ import (
 "golang.org/x/mobile/event/key"
     "io/ioutil"
     _ "strings"
+    //"math"
     "net"
     "errors"
     "encoding/binary"
@@ -60,8 +61,9 @@ import (
 import "github.com/go-gl/mathgl/mgl32"
         import "golang.org/x/mobile/exp/sensor"
 
-var clientWidth=uint(800*3)
-var clientHeight=uint(600*3)
+var multiSample = uint(1)  //Make the internal pixel buffer larger to enable multisampling and eventually GL anti-aliasing
+var clientWidth=uint(800*multiSample)
+var clientHeight=uint(600*multiSample)
 var u8Pix []uint8
 var (
     startDrawing bool
@@ -237,10 +239,10 @@ $ - Skip to EOL
             case size.Event:
                 sz = e
                 reCalcNeeded = true
-                screenWidth = sz.WidthPx*3
-                clientWidth = uint(sz.WidthPx)*3
-                screenHeight = sz.HeightPx*3
-                clientHeight = uint(sz.HeightPx)*3
+                screenWidth = sz.WidthPx*int(multiSample)
+                clientWidth = uint(sz.WidthPx)*multiSample
+                screenHeight = sz.HeightPx*int(multiSample)
+                clientHeight = uint(sz.HeightPx)*multiSample
                 reDimBuff(screenWidth,screenHeight)
                 touchX = float32(sz.WidthPx /2)
                 touchY = float32(sz.HeightPx * 9/10)
@@ -432,7 +434,7 @@ func onPaint(glctx gl.Context, sz size.Event) {
     for i, _:= range u8Pix {
         u8Pix[i] = 0
     }
-    RenderPara(gc.ActiveBuffer.Formatter, 5, 5, screenWidth, screenHeight, u8Pix, gc.ActiveBuffer.Data.Text, false, true, true)
+    RenderPara(gc.ActiveBuffer.Formatter, 5, 5, screenWidth, screenHeight, u8Pix, gc.ActiveBuffer.Data.Text, true, true, true)
     glctx.Enable(gl.BLEND)
     glctx.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
     glctx.Enable( gl.DEPTH_TEST );
@@ -443,6 +445,23 @@ func onPaint(glctx gl.Context, sz size.Event) {
     glctx.UseProgram(program)
 
 
+    //outBytes := make([]byte, len(u8Pix))
+    //for i:=2 ; i<len(u8Pix)-2; i++ {
+        ////n := (u8Pix[i-2] + u8Pix[i-1] + u8Pix[i] + u8Pix[i+1] + u8Pix[i+2])/5
+        //n := (u8Pix[i-1] + u8Pix[i] + u8Pix[i+1])/3
+        //m := int(math.Ceil(math.Mod(float64(i), 4)))
+        //log2Buff(fmt.Sprintf("n: %v, m: %v, orig: %v\n", n,m, u8Pix[i]))
+        ////fmt.Printf("n: %v, m: %v, orig: %v\n", n,m, u8Pix[i])
+        //if n> u8Pix[i] {
+            //if  m != 3 {
+                //outBytes[i] = n
+            //} else {
+                //outBytes[i] = 255
+            //}
+        //} else {
+            //outBytes[i] = u8Pix[i]
+        //}
+    //}
 
     glctx.TexImage2D(gl.TEXTURE_2D, 0, int(clientWidth), int(clientHeight), gl.RGBA, gl.UNSIGNED_BYTE, u8Pix)
 
@@ -477,7 +496,13 @@ func onPaint(glctx gl.Context, sz size.Event) {
     for i, _:= range u8Pix {
         u8Pix[i] = 0
     }
-    RenderPara(gc.BufferList[1].Formatter, 5, 5, screenWidth, screenHeight, u8Pix, gc.BufferList[1].Data.Text, false, true, false)
+    RenderPara(gc.BufferList[1].Formatter, 5, 5, screenWidth, screenHeight, u8Pix, gc.BufferList[1].Data.Text, true, true, false)
+    
+    //for i:=1 ; i<len(u8Pix)-1; i++ {
+        //outBytes[i] = u8Pix[i] // (u8Pix[i-1] + 2*u8Pix[i] +u8Pix[i+1])/4
+    //}
+
+    
     glctx.TexImage2D(gl.TEXTURE_2D, 0, int(clientWidth), int(clientHeight), gl.RGBA, gl.UNSIGNED_BYTE, u8Pix)
     glctx.Viewport(sz.WidthPx/2,0, sz.WidthPx/2, sz.HeightPx)
     glctx.DrawArrays(gl.TRIANGLES, 0, 6)

@@ -306,6 +306,8 @@ func handleEvent(a app.App, i interface{}) {
                   gc.ActiveBuffer.Formatter.FontSize += 1
                 case '-':
                   gc.ActiveBuffer.Formatter.FontSize -= 1
+                case 'B':
+                  clearAllCaches()
 
             }
         }
