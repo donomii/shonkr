@@ -222,10 +222,12 @@ func glGenTextureFromFramebuffer(glctx gl.Context, w, h int) (gl.Framebuffer, gl
 
 var renderCache map[string]*image.RGBA
 var faceCache map[string]*font.Face
+var fontCache map[string]*truetype.Font
 
 func clearAllCaches() {
 	renderCache = map[string]*image.RGBA{}
 	faceCache = map[string]*font.Face{}
+	fontCache = map[string]*truetype.Font{}
 }
 func DrawStringRGBA(txtSize float64, fontColor color.RGBA, txt string) (*image.RGBA, *font.Face) {
     cacheKey := fmt.Sprintf("%v,%v,%v", txtSize, fontColor, txt)
@@ -245,7 +247,7 @@ func DrawStringRGBA(txtSize float64, fontColor color.RGBA, txt string) (*image.R
         Src: image.NewUniform(fontColor), // 字体颜色
         Face: truetype.NewFace(txtFont, &truetype.Options{
             Size:    txtSize,
-            DPI:     256,
+            DPI:     72,
             Hinting: font.HintingNone,
         }),
     }
@@ -257,15 +259,15 @@ func DrawStringRGBA(txtSize float64, fontColor color.RGBA, txt string) (*image.R
     if Xadj<0 { Xadj = Xadj * -1 }
     // fuckedRect, _, _ = fface.GlyphBounds(glyph)
     // letterHeight := fixed2int(fuckedRect.Max.Y)
-    //
-    rect := image.Rect(0, 0, d.MeasureString(txt).Ceil()*2, int(txtSize)*8)
+    //]
+    rect := image.Rect(0, 0, d.MeasureString(txt).Ceil()*2, int(txtSize)*4)
     //rect := image.Rect(0, 0, 30, 30)
     rgba := image.NewRGBA(rect)
     d.Dst = rgba
 
     d.Dot = fixed.Point26_6{
         X: fixed.I(Xadj),
-        Y: fixed.I(rect.Max.Y/3), //fixed.I(rect.Max.Y/3), //rect.Max.Y*2/3),
+        Y: fixed.I(rect.Max.Y*2/3), //fixed.I(rect.Max.Y/3), //rect.Max.Y*2/3),
     }
     d.DrawString(txt)
     renderCache[cacheKey] = rgba
@@ -279,6 +281,14 @@ func DrawStringRGBA(txtSize float64, fontColor color.RGBA, txt string) (*image.R
 
 func LoadGameFont(fileName string) *truetype.Font {
 
+    if fontCache == nil {
+        fontCache = map[string]*truetype.Font{}
+    }
+    im, ok := fontCache[fileName]
+    if ok {
+        return im
+    }
+
 	//fontBytes := sysFont.Monospace()
 	//fontBytes := sysFont.Default()
 	//f := bytes.NewReader(fontBytes)
@@ -289,8 +299,7 @@ func LoadGameFont(fileName string) *truetype.Font {
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Printf("%v%v\n", folderPath, fileName)
-		file, err := os.Open(fmt.Sprintf("%v%v", folderPath, "f1.txt"))
+		file, err := os.Open(fmt.Sprintf("%v%v%v", folderPath, string(os.PathSeparator), "f1.txt"))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -302,8 +311,7 @@ func LoadGameFont(fileName string) *truetype.Font {
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Printf("%v%v\n", folderPath, fileName)
-		file, err := os.Open(fmt.Sprintf("%v%v", folderPath, fileName))
+		file, err := os.Open(fmt.Sprintf("%v%v%v", folderPath, string(os.PathSeparator), fileName))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -322,6 +330,8 @@ func LoadGameFont(fileName string) *truetype.Font {
 		log.Println(err1)
 		panic(err1)
 	}
+
+    fontCache[fileName] = txtFont
 	return txtFont
 }
 
@@ -401,11 +411,11 @@ func fixed2int(n fixed.Int26_6) int {
 }
 
 func log2Buff(s string) {
-	gc.BufferList[1].Data.Text = s
+	gc.StatusBuffer.Data.Text = s
 }
 
 
-func RenderPara(f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8, text string, transparent bool, doDraw bool, showCursor bool) {
+func RenderPara(f *FormatParams, orig_xpos, orig_ypos, maxX, maxY int, u8Pix []uint8, text string, transparent bool, doDraw bool, showCursor bool) {
 	if f.TailBuffer {
 		//f.Cursor = len(text)
 		//scrollToCursor(f, text)  //Use pageup function, once it is fast enough
@@ -414,6 +424,7 @@ func RenderPara(f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8,
 	letters := strings.Split(text, "")
 	letters = append(letters, " ")
 	xpos := orig_xpos
+	ypos := orig_ypos
 	//xAdv := 1
 	//yAdv := 0
 	//lfX :=0
@@ -456,9 +467,11 @@ func RenderPara(f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8,
 			//log.Printf("Oversize end for %v at %v\n", v, i)
 		}
 		if string(text[i]) == "\n" {
-			ypos = ypos + maxHeight
+			//ypos = ypos + maxHeight
+			xpos = xpos + maxHeight
 			//maxHeight=0
-			xpos = orig_xpos
+			//xpos = orig_xpos FIXME
+            ypos = orig_ypos
 			f.Line++
 			f.StartLinePos = i
 			if f.Cursor == i && showCursor {
@@ -474,13 +487,13 @@ func RenderPara(f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8,
 				}
 				img, face := DrawStringRGBA(f.FontSize, *f.Colour, v)
 				XmaX, YmaX := img.Bounds().Max.X, img.Bounds().Max.Y
-				//imgBytes := Rotate270(XmaX, YmaX, img.Pix)
-				//XmaX, YmaX = YmaX, XmaX
-				imgBytes := img.Pix
+				imgBytes := Rotate270(XmaX, YmaX, img.Pix)
+				XmaX, YmaX = YmaX, XmaX
+				//imgBytes := img.Pix
 				fa := *face
-				glyph, _ := utf8.DecodeRuneInString(v)
-				letterWidth_F, _ := fa.GlyphAdvance(glyph)
-				letterWidth := fixed2int(letterWidth_F)
+				//glyph, _ := utf8.DecodeRuneInString(v)
+				//letterWidth_F, _ := fa.GlyphAdvance(glyph)
+				//letterWidth := fixed2int(letterWidth_F)
 				//fuckedRect, _, _ := fa.GlyphBounds(glyph)
 				//letterHeight := fixed2int(fuckedRect.Max.Y)
 				letterHeight := fixed2int(fa.Metrics().Height)
@@ -488,16 +501,27 @@ func RenderPara(f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8,
 				//letterHeight = letterHeight
 
 				if xpos+XmaX > maxX {
-					ypos = ypos + maxHeight
+					/* 
+                    ypos = ypos + maxHeight
 					maxHeight = 0
 					xpos = orig_xpos
 					f.Line++
 					f.StartLinePos = i
+                    */
+					f.LastDrawnCharPos = i - 1
+					return
 				}
 
 				if ypos+YmaX+ytweak+1 > maxY {
+                    /*
 					f.LastDrawnCharPos = i - 1
 					return
+                    */
+                    xpos = xpos + maxHeight
+					maxHeight = 0
+					ypos = orig_ypos
+					f.Line++
+					f.StartLinePos = i
 				}
 
 				if doDraw {
@@ -522,7 +546,8 @@ func RenderPara(f *FormatParams, orig_xpos, ypos, maxX, maxY int, u8Pix []uint8,
 				xpos = newXpos
 				ypos = newYpos
 
-				xpos += letterWidth
+				//xpos += letterWidth
+				ypos += maxHeight
 				//log2Buff(fmt.Sprintf("Xadv: %v, Yadv: %v\n", XmaX, YmaX ))
 				//log.Printf("Xadv: %v, Yadv: %v\n", XmaX, YmaX )
 			}

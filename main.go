@@ -62,6 +62,8 @@ import "github.com/go-gl/mathgl/mgl32"
         import "golang.org/x/mobile/exp/sensor"
 
 var multiSample = uint(1)  //Make the internal pixel buffer larger to enable multisampling and eventually GL anti-aliasing
+var pixelTweakX =0
+var pixelTweakY =0
 var clientWidth=uint(800*multiSample)
 var clientHeight=uint(600*multiSample)
 var u8Pix []uint8
@@ -250,11 +252,7 @@ B Clear all caches
             case size.Event:
                 sz = e
                 reCalcNeeded = true
-                screenWidth = sz.WidthPx*int(multiSample)
-                clientWidth = uint(sz.WidthPx)*multiSample
-                screenHeight = sz.HeightPx*int(multiSample)
-                clientHeight = uint(sz.HeightPx)*multiSample
-                reDimBuff(screenWidth,screenHeight)
+                reDimBuff(int(sz.WidthPx),int(sz.HeightPx))
                 touchX = float32(sz.WidthPx /2)
                 touchY = float32(sz.HeightPx * 9/10)
                 if (sz.Orientation == size.OrientationLandscape) {
@@ -341,14 +339,19 @@ func externalIP() (string, error) {
 }
 
 func reDimBuff(x,y int) {
-    dim := x*y*4
+    x = x/2  //We are going to have to manage this for each pane
+    screenWidth = (pixelTweakX+x)*int(multiSample)
+    clientWidth = uint(pixelTweakX+x)*multiSample
+    screenHeight = (pixelTweakY+y)*int(multiSample)
+    clientHeight = uint(pixelTweakY+y)*multiSample
+    dim := clientWidth*clientHeight*4
     u8Pix = make([]uint8, dim, dim)
 }
 
 var fname string
 
 func NewFormatter() *FormatParams{
-    return &FormatParams{&color.RGBA{1,1,1,255},0,0,0, 6.0,0,0, false}
+    return &FormatParams{&color.RGBA{1,1,1,255},0,0,0, 36.0,0,0, false}
 }
 
 func NewBuffer() *Buffer{
@@ -362,6 +365,18 @@ func NewBuffer() *Buffer{
 
 func onStart(glctx gl.Context) {
     gc.ActiveBufferId = 0
+    gc.BufferList = append(gc.BufferList, NewBuffer())
+    gc.BufferList[0].Data.FileName = "Log Buffer"
+    gc.BufferList[0].Data.Text = "Log Buffer"
+    gc.LogBuffer = gc.BufferList[0]
+    gc.BufferList = append(gc.BufferList, NewBuffer())
+    gc.BufferList[1].Data.FileName = "Command Buffer"
+    gc.BufferList[1].Data.Text = "Command Buffer"
+    gc.CommandBuffer = gc.BufferList[1]
+    gc.BufferList = append(gc.BufferList, NewBuffer())
+    gc.BufferList[2].Data.FileName = "Status Buffer"
+    gc.BufferList[2].Data.Text = "Status Buffer"
+    gc.StatusBuffer = gc.BufferList[2]
     if len(os.Args)>1 {
         fname = os.Args[1]
         log.Println("Loading file: ", fname)
@@ -381,11 +396,10 @@ func onStart(glctx gl.Context) {
         buf.Formatter.TailBuffer = true
         gc.BufferList = append(gc.BufferList, buf)
     }
-    for i:=0;i<5;i++ {
+    for i:=0;i<2;i++ {
         buf := NewBuffer()
         gc.BufferList = append(gc.BufferList, buf)
     }
-    gc.BufferList[2].Data = gc.BufferList[1].Data
     log.Printf("Onstart callback...")
     reDimBuff(int(clientWidth),int(clientHeight))
     var err error
@@ -473,6 +487,12 @@ func onPaint(glctx gl.Context, sz size.Event) {
             //outBytes[i] = u8Pix[i]
         //}
     //}
+    glctx.PixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    glctx.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    glctx.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    glctx.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    glctx.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
     glctx.TexImage2D(gl.TEXTURE_2D, 0, int(clientWidth), int(clientHeight), gl.RGBA, gl.UNSIGNED_BYTE, u8Pix)
 
@@ -507,7 +527,7 @@ func onPaint(glctx gl.Context, sz size.Event) {
     for i, _:= range u8Pix {
         u8Pix[i] = 0
     }
-    RenderPara(gc.BufferList[1].Formatter, 5, 5, screenWidth, screenHeight, u8Pix, gc.BufferList[1].Data.Text, true, true, false)
+    RenderPara(gc.StatusBuffer.Formatter, 5, 5, screenWidth, screenHeight, u8Pix, gc.StatusBuffer.Data.Text, true, true, false)
 
     //for i:=1 ; i<len(u8Pix)-1; i++ {
         //outBytes[i] = u8Pix[i] // (u8Pix[i-1] + 2*u8Pix[i] +u8Pix[i+1])/4
@@ -524,6 +544,9 @@ type GlobalConfig struct {
     ActiveBuffer   *Buffer
     ActiveBufferId int
     BufferList     []*Buffer
+    LogBuffer       *Buffer
+    StatusBuffer    *Buffer
+    CommandBuffer   *Buffer
 }
 
 type BufferData struct {
