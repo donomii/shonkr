@@ -229,6 +229,7 @@ func clearAllCaches() {
 	faceCache = map[string]*font.Face{}
 	fontCache = map[string]*truetype.Font{}
 }
+
 func DrawStringRGBA(txtSize float64, fontColor color.RGBA, txt string) (*image.RGBA, *font.Face) {
     cacheKey := fmt.Sprintf("%v,%v,%v", txtSize, fontColor, txt)
     if renderCache == nil {
@@ -260,7 +261,7 @@ func DrawStringRGBA(txtSize float64, fontColor color.RGBA, txt string) (*image.R
     // fuckedRect, _, _ = fface.GlyphBounds(glyph)
     // letterHeight := fixed2int(fuckedRect.Max.Y)
     //]
-    rect := image.Rect(0, 0, d.MeasureString(txt).Ceil()*2, int(txtSize)*4)
+    rect := image.Rect(0, 0, d.MeasureString(txt).Ceil()*2, int(txtSize)*3/2)
     //rect := image.Rect(0, 0, 30, 30)
     rgba := image.NewRGBA(rect)
     d.Dst = rgba
@@ -414,6 +415,53 @@ func log2Buff(s string) {
 	gc.StatusBuffer.Data.Text = s
 }
 
+type Vec2 struct {
+    x,y int
+}
+
+func inBounds(v, min, max, charDim Vec2) bool {
+    if v.x < min.x {
+        return false
+    }
+    if v.y < min.y {
+        return false
+    }
+    if v.x > max.x {
+        return false
+    }
+    if v.y < min.y {
+        return false
+    }
+    return true
+}
+func moveInBounds(v, min, max, charDim, charAdv, linAdv Vec2) (newPos Vec2) {
+    //fmt.Printf("(%v), (%v), (%v), (%v)\n",v, min, max, charDim)
+    if v.x < min.x {
+        return moveInBounds(Vec2{v.x+1, v.y}, min, max, charDim, charAdv, linAdv)
+    }
+    if v.y < min.y {
+        return moveInBounds(Vec2{v.x, v.y+1}, min, max, charDim, charAdv, linAdv)
+    }
+    if v.x + charDim.x > max.x {
+        return moveInBounds(Vec2{v.x-1, v.y}, min, max, charDim, charAdv, linAdv)
+    }
+    if v.y + charDim.y > max.y {
+        return moveInBounds(Vec2{v.x, v.y-1}, min, max, charDim, charAdv, linAdv)
+    }
+    return v
+}
+
+func getGlyphSize(size float64, str string) (int, int) {
+    _, str_size := utf8.DecodeRuneInString(str)
+    img, _ := DrawStringRGBA(size, color.RGBA{1.0,1.0,1.0,1.0}, str[0:str_size])
+    XmaX, YmaX := img.Bounds().Max.X, img.Bounds().Max.Y
+    if (XmaX>4000) {
+        panic("X can't be that big")
+    }
+    return XmaX, YmaX
+}
+
+
 
 func RenderPara(f *FormatParams, orig_xpos, orig_ypos, maxX, maxY int, u8Pix []uint8, text string, transparent bool, doDraw bool, showCursor bool) {
 	if f.TailBuffer {
@@ -423,8 +471,16 @@ func RenderPara(f *FormatParams, orig_xpos, orig_ypos, maxX, maxY int, u8Pix []u
 	//log.Printf("Cursor: %v\n", f.Cursor)
 	letters := strings.Split(text, "")
 	letters = append(letters, " ")
-	xpos := orig_xpos
+	//xpos := orig_xpos
+	xpos := maxX
 	ypos := orig_ypos
+    gx, gy := getGlyphSize(f.FontSize, text)
+    pos := moveInBounds(Vec2{maxX, 0}, Vec2{orig_xpos, orig_ypos}, Vec2{maxX-5, maxY}, Vec2{gx, gy}, Vec2{0,1}, Vec2{-1,0})
+    fmt.Printf("Chose position %v, maxX: %v\n", pos, maxX)
+    xpos = pos.x
+    //xpos = maxX - 200
+    ypos = pos.y
+	ypos = orig_ypos
 	//xAdv := 1
 	//yAdv := 0
 	//lfX :=0
@@ -468,7 +524,8 @@ func RenderPara(f *FormatParams, orig_xpos, orig_ypos, maxX, maxY int, u8Pix []u
 		}
 		if string(text[i]) == "\n" {
 			//ypos = ypos + maxHeight
-			xpos = xpos + maxHeight
+			//xpos = xpos + maxHeight
+			xpos = xpos - maxHeight
 			//maxHeight=0
 			//xpos = orig_xpos FIXME
             ypos = orig_ypos
@@ -487,9 +544,9 @@ func RenderPara(f *FormatParams, orig_xpos, orig_ypos, maxX, maxY int, u8Pix []u
 				}
 				img, face := DrawStringRGBA(f.FontSize, *f.Colour, v)
 				XmaX, YmaX := img.Bounds().Max.X, img.Bounds().Max.Y
-				imgBytes := Rotate270(XmaX, YmaX, img.Pix)
-				XmaX, YmaX = YmaX, XmaX
-				//imgBytes := img.Pix
+				imgBytes := img.Pix
+				//imgBytes := Rotate270(XmaX, YmaX, img.Pix)
+				//XmaX, YmaX = YmaX, XmaX
 				fa := *face
 				//glyph, _ := utf8.DecodeRuneInString(v)
 				//letterWidth_F, _ := fa.GlyphAdvance(glyph)
@@ -500,7 +557,7 @@ func RenderPara(f *FormatParams, orig_xpos, orig_ypos, maxX, maxY int, u8Pix []u
 				//letterWidth = XmaX
 				//letterHeight = letterHeight
 
-				if xpos+XmaX > maxX {
+				if (xpos+XmaX > maxX) || (xpos<0) {
 					/* 
                     ypos = ypos + maxHeight
 					maxHeight = 0
@@ -512,12 +569,13 @@ func RenderPara(f *FormatParams, orig_xpos, orig_ypos, maxX, maxY int, u8Pix []u
 					return
 				}
 
-				if ypos+YmaX+ytweak+1 > maxY {
+				if (ypos+YmaX+ytweak+1 > maxY) || (ypos+ytweak<0) {
                     /*
 					f.LastDrawnCharPos = i - 1
 					return
                     */
-                    xpos = xpos + maxHeight
+                    //xpos = xpos + maxHeight
+                    xpos = xpos - maxHeight
 					maxHeight = 0
 					ypos = orig_ypos
 					f.Line++
@@ -526,7 +584,8 @@ func RenderPara(f *FormatParams, orig_xpos, orig_ypos, maxX, maxY int, u8Pix []u
 
 				if doDraw {
 					//PasteImg(img, xpos, ypos + ytweak, u8Pix, transparent)
-					PasteBytes(XmaX, YmaX, imgBytes, xpos, ypos+ytweak, int(clientWidth), int(clientHeight), u8Pix, transparent)
+					//PasteBytes(XmaX, YmaX, imgBytes, xpos, ypos+ytweak, int(clientWidth), int(clientHeight), u8Pix, transparent)
+					PasteBytes(XmaX, YmaX, imgBytes, xpos, ypos+ytweak, int(clientWidth), int(clientHeight), u8Pix, true)
 				}
 
 				if f.Cursor == i && showCursor {
@@ -612,6 +671,11 @@ func PasteBytes(srcWidth, srcHeight int, srcBytes []byte, xpos, ypos, dstWidth, 
 				u8Pix[srcOff+0] = outR
 				u8Pix[srcOff+1] = outG
 				u8Pix[srcOff+2] = outB
+                if i == 0 {
+                   u8Pix[dstOff+0] = 255
+                   u8Pix[dstOff+3] = 255
+                    
+                }
 			}
 		} else {
 			srcOff := i * srcWidth * 4
