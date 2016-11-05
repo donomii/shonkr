@@ -308,11 +308,23 @@ func handleEvent(a app.App, i interface{}) {
                 case 'T':
                     gc.ActiveBuffer.Formatter.TailBuffer = true
                 case 'W':
+                    if gc.ActiveBuffer.Formatter.Outline {
+                        gc.ActiveBuffer.Formatter.Outline = false
+                    } else {
+                        gc.ActiveBuffer.Formatter.Outline = true
+                    }
                 case 'S':
+                    if gc.ActiveBuffer.Formatter.Vertical {
+                        gc.ActiveBuffer.Formatter.Vertical = false
+                    } else {
+                        gc.ActiveBuffer.Formatter.Vertical = true
+                    }
                 case '+':
                   gc.ActiveBuffer.Formatter.FontSize += 1
+                  clearAllCaches()
                 case '-':
                   gc.ActiveBuffer.Formatter.FontSize -= 1
+                  clearAllCaches()
                 case 'B':
                   clearAllCaches()
                   log2Buff("Caches cleared")

@@ -359,6 +359,8 @@ type FormatParams struct {
 	FirstDrawnCharPos int //The first character to draw on the screen.  Anything before this is ignored
 	LastDrawnCharPos  int //The last character that we were able to fit on the screen
 	TailBuffer        bool
+	Outline           bool
+	Vertical          bool
 }
 
 func drawCursor(xpos, ypos, height int, u8Pix []byte) {
@@ -464,6 +466,7 @@ func getGlyphSize(size float64, str string) (int, int) {
 
 
 func RenderPara(f *FormatParams, orig_xpos, orig_ypos, maxX, maxY int, u8Pix []uint8, text string, transparent bool, doDraw bool, showCursor bool) {
+    vert := gc.ActiveBuffer.Formatter.Vertical
 	if f.TailBuffer {
 		//f.Cursor = len(text)
 		//scrollToCursor(f, text)  //Use pageup function, once it is fast enough
@@ -471,25 +474,21 @@ func RenderPara(f *FormatParams, orig_xpos, orig_ypos, maxX, maxY int, u8Pix []u
 	//log.Printf("Cursor: %v\n", f.Cursor)
 	letters := strings.Split(text, "")
 	letters = append(letters, " ")
-	//xpos := orig_xpos
-	xpos := maxX
-	ypos := orig_ypos
-    gx, gy := getGlyphSize(f.FontSize, text)
-    pos := moveInBounds(Vec2{maxX, 0}, Vec2{orig_xpos, orig_ypos}, Vec2{maxX-5, maxY}, Vec2{gx, gy}, Vec2{0,1}, Vec2{-1,0})
-    fmt.Printf("Chose position %v, maxX: %v\n", pos, maxX)
-    xpos = pos.x
-    //xpos = maxX - 200
-    ypos = pos.y
-	ypos = orig_ypos
-	//xAdv := 1
-	//yAdv := 0
-	//lfX :=0
-	//lfY := 1
-	orig_fontSize := f.FontSize
+    orig_fontSize := f.FontSize
 	defer func() {
 		f.FontSize = orig_fontSize
 		sanityCheck(f, text)
 	}()
+	xpos := orig_xpos
+	ypos := orig_ypos
+    if vert {
+        xpos = maxX
+    }
+    gx, gy := getGlyphSize(f.FontSize, text)
+    pos := moveInBounds(Vec2{xpos, ypos}, Vec2{orig_xpos, orig_ypos}, Vec2{maxX-5, maxY}, Vec2{gx, gy}, Vec2{0,1}, Vec2{-1,0})
+    //fmt.Printf("Chose position %v, maxX: %v\n", pos, maxX)
+    xpos = pos.x
+    ypos = pos.y
 	maxHeight := 0
 	wobblyMode := false
 	if f.Cursor > len(letters) {
@@ -523,20 +522,20 @@ func RenderPara(f *FormatParams, orig_xpos, orig_ypos, maxX, maxY int, u8Pix []u
 			//log.Printf("Oversize end for %v at %v\n", v, i)
 		}
 		if string(text[i]) == "\n" {
-			//ypos = ypos + maxHeight
-			//xpos = xpos + maxHeight
-			xpos = xpos - maxHeight
-			//maxHeight=0
-			//xpos = orig_xpos FIXME
-            ypos = orig_ypos
+            if vert {
+                xpos = xpos - maxHeight
+                ypos = orig_ypos
+            } else {
+                ypos = ypos + maxHeight
+                xpos = orig_xpos
+                maxHeight = 0
+            }
 			f.Line++
 			f.StartLinePos = i
 			if f.Cursor == i && showCursor {
 				drawCursor(xpos, ypos, maxHeight, u8Pix)
 			}
 		} else {
-			//if f.Cursor <= f.Line {
-			//if f.Cursor >= f.FirstDrawnCharPos {
 			if i >= f.FirstDrawnCharPos {
 				ytweak := 0
 				if wobblyMode {
@@ -548,38 +547,39 @@ func RenderPara(f *FormatParams, orig_xpos, orig_ypos, maxX, maxY int, u8Pix []u
 				//imgBytes := Rotate270(XmaX, YmaX, img.Pix)
 				//XmaX, YmaX = YmaX, XmaX
 				fa := *face
-				//glyph, _ := utf8.DecodeRuneInString(v)
-				//letterWidth_F, _ := fa.GlyphAdvance(glyph)
-				//letterWidth := fixed2int(letterWidth_F)
+				glyph, _ := utf8.DecodeRuneInString(v)
+				letterWidth_F, _ := fa.GlyphAdvance(glyph)
+				letterWidth := fixed2int(letterWidth_F)
 				//fuckedRect, _, _ := fa.GlyphBounds(glyph)
 				//letterHeight := fixed2int(fuckedRect.Max.Y)
 				letterHeight := fixed2int(fa.Metrics().Height)
-				//letterWidth = XmaX
+				//letterWidth := XmaX
 				//letterHeight = letterHeight
 
 				if (xpos+XmaX > maxX) || (xpos<0) {
-					/* 
-                    ypos = ypos + maxHeight
-					maxHeight = 0
-					xpos = orig_xpos
-					f.Line++
-					f.StartLinePos = i
-                    */
-					f.LastDrawnCharPos = i - 1
-					return
+					if vert {
+                        f.LastDrawnCharPos = i - 1
+                        return
+                    } else {
+                        ypos = ypos + maxHeight
+                        maxHeight = 0
+                        xpos = orig_xpos
+                        f.Line++
+                        f.StartLinePos = i
+                    }
 				}
 
 				if (ypos+YmaX+ytweak+1 > maxY) || (ypos+ytweak<0) {
-                    /*
-					f.LastDrawnCharPos = i - 1
-					return
-                    */
-                    //xpos = xpos + maxHeight
-                    xpos = xpos - maxHeight
-					maxHeight = 0
-					ypos = orig_ypos
-					f.Line++
-					f.StartLinePos = i
+                    if vert {
+                        xpos = xpos - maxHeight
+                        maxHeight = 0
+                        ypos = orig_ypos
+                        f.Line++
+                        f.StartLinePos = i
+                    } else {
+                        f.LastDrawnCharPos = i - 1
+                        return
+                    }
 				}
 
 				if doDraw {
@@ -594,21 +594,12 @@ func RenderPara(f *FormatParams, orig_xpos, orig_ypos, maxX, maxY int, u8Pix []u
 
 				f.LastDrawnCharPos = i
 				maxHeight = MaxI(maxHeight, letterHeight)
-				//xpos = xpos+ po2/2
-				newXpos := xpos
-				newYpos := ypos
-				//for ii:=0; ii<letterWidth; ii++ {
-				//newXpos =  newXpos + xAdv
-				//newYpos =  newYpos + yAdv
-				//}
 
-				xpos = newXpos
-				ypos = newYpos
-
-				//xpos += letterWidth
-				ypos += maxHeight
-				//log2Buff(fmt.Sprintf("Xadv: %v, Yadv: %v\n", XmaX, YmaX ))
-				//log.Printf("Xadv: %v, Yadv: %v\n", XmaX, YmaX )
+                if vert {
+                    ypos += maxHeight
+                } else {
+                    xpos += letterWidth
+                }
 			}
 		}
 	}
@@ -671,10 +662,12 @@ func PasteBytes(srcWidth, srcHeight int, srcBytes []byte, xpos, ypos, dstWidth, 
 				u8Pix[srcOff+0] = outR
 				u8Pix[srcOff+1] = outG
 				u8Pix[srcOff+2] = outB
-                if i == 0 {
+                if gc.ActiveBuffer.Formatter.Outline {
+                if i == 0 || j == 0 || i == srcHeight - 1 || j == srcWidth -1 {
                    u8Pix[dstOff+0] = 255
                    u8Pix[dstOff+3] = 255
                     
+                }
                 }
 			}
 		} else {
