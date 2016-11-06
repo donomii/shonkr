@@ -31,6 +31,7 @@ package main
 import "github.com/pkg/profile"
 import "image/color"
 import (
+"github.com/donomii/glim"
 "golang.org/x/mobile/event/key"
     "io/ioutil"
     _ "strings"
@@ -350,8 +351,8 @@ func reDimBuff(x,y int) {
 
 var fname string
 
-func NewFormatter() *FormatParams{
-    return &FormatParams{&color.RGBA{1,1,1,255},0,0,0, 36.0,0,0, false, true, true}
+func NewFormatter() *glim.FormatParams{
+    return &glim.FormatParams{&color.RGBA{1,1,1,255},0,0,0, 36.0,0,0, false, true, true}
 }
 
 func NewBuffer() *Buffer{
@@ -364,6 +365,15 @@ func NewBuffer() *Buffer{
 }
 
 func onStart(glctx gl.Context) {
+    //For some reason, the framework feeds us the wrong window size at start.  Luckily we can query the context directly
+    outbuff := []int32{0,0,0,0}
+    glctx.GetIntegerv(outbuff, gl.VIEWPORT)
+    log.Printf("Start viewport: %v\n", outbuff)
+    screenWidth = int(outbuff[2])
+    screenHeight = int(outbuff[3])
+    reCalcNeeded = true
+    reDimBuff(int(screenWidth),int(screenHeight))
+
     gc.ActiveBufferId = 0
     gc.BufferList = append(gc.BufferList, NewBuffer())
     gc.BufferList[0].Data.FileName = "Log Buffer"
@@ -459,7 +469,7 @@ func onPaint(glctx gl.Context, sz size.Event) {
     for i, _:= range u8Pix {
         u8Pix[i] = 0
     }
-    RenderPara(gc.ActiveBuffer.Formatter, 5, 5, screenWidth, screenHeight, u8Pix, gc.ActiveBuffer.Data.Text, true, true, true)
+    glim.RenderPara(gc.ActiveBuffer.Formatter, 0, 0, screenWidth, screenHeight, u8Pix, gc.ActiveBuffer.Data.Text, true, true, true)
     glctx.Enable(gl.BLEND)
     glctx.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
     glctx.Enable( gl.DEPTH_TEST );
@@ -527,7 +537,7 @@ func onPaint(glctx gl.Context, sz size.Event) {
     for i, _:= range u8Pix {
         u8Pix[i] = 0
     }
-    RenderPara(gc.StatusBuffer.Formatter, 5, 5, screenWidth, screenHeight, u8Pix, gc.StatusBuffer.Data.Text, true, true, false)
+    glim.RenderPara(gc.StatusBuffer.Formatter, 0, 0, screenWidth, screenHeight, u8Pix, gc.StatusBuffer.Data.Text, true, true, false)
 
     //for i:=1 ; i<len(u8Pix)-1; i++ {
         //outBytes[i] = u8Pix[i] // (u8Pix[i-1] + 2*u8Pix[i] +u8Pix[i+1])/4
@@ -557,7 +567,7 @@ type BufferData struct {
 type Buffer struct {
     Data    *BufferData
     InputMode bool
-    Formatter *FormatParams
+    Formatter *glim.FormatParams
 }
 
 var gc GlobalConfig

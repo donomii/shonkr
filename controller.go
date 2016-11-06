@@ -3,6 +3,7 @@
 package main
 
 import (
+    "github.com/donomii/glim"
     "io"
     "golang.org/x/crypto/ssh/agent"
     "net"
@@ -23,6 +24,41 @@ import (
 func handleSensor(e sensor.Event) {
 	log.Println(e)
 }
+
+func Log2Buff(s string) {
+	gc.StatusBuffer.Data.Text = s
+}
+func SearchBackPage(txtBuf string, orig_f *glim.FormatParams, screenWidth, screenHeight int)  int {
+	input := *orig_f
+	x := input.StartLinePos
+	newLastDrawn := input.LastDrawnCharPos
+	for x = input.Cursor; x > 0 && input.FirstDrawnCharPos < newLastDrawn; x = scanToPrevLine(txtBuf, x) {
+		f := input
+		f.FirstDrawnCharPos = x
+        
+		glim.RenderPara(&f, 0, 0, screenWidth, screenHeight, nil, txtBuf, false, false, false)
+		newLastDrawn = f.LastDrawnCharPos
+	}
+	return x
+}
+
+
+
+func DumpBuffer(b *Buffer) {
+	Log2Buff(fmt.Sprintf(`
+FileName: %v,
+Active Buffer: %v,
+StartChar: %v,
+LastChar: %v,
+Cursor: %v,
+Tail: %v,
+Font Size: %v,
+Screen Width: %v,
+Screen Height: %v
+`, b.Data.FileName, gc.ActiveBufferId, b.Formatter.FirstDrawnCharPos, b.Formatter.LastDrawnCharPos, b.Formatter.Cursor, b.Formatter.TailBuffer, b.Formatter.FontSize, screenWidth, screenHeight))
+}
+
+
 
 func scanToPrevPara (txt string, c int) int{
     log.Println("To Previous Line")
@@ -101,10 +137,10 @@ func deleteLeft(t string, p int) string {
 }
 
 func saveFile(fname string, txt string ) {
-    log2Buff(fmt.Sprintf("Saving: %v",fname))
+    Log2Buff(fmt.Sprintf("Saving: %v",fname))
     err := ioutil.WriteFile(fname, []byte(txt), 0644)
     check(err, "saving file")
-    log2Buff(fmt.Sprintf("File saved: %v",fname))
+    Log2Buff(fmt.Sprintf("File saved: %v",fname))
 }
 
 func check(e error, msg string) {
@@ -113,7 +149,7 @@ func check(e error, msg string) {
     }
 }
 
-func scrollToCursor(f *FormatParams, txt string) {
+func scrollToCursor(f *glim.FormatParams, txt string) {
     log.Printf("Scrolling to cursor")
     cursor := f.Cursor
     for i:=0; i<5; i++ {
@@ -201,16 +237,16 @@ func pageDown(buf *Buffer) {
     buf.Formatter.Cursor = buf.Formatter.FirstDrawnCharPos
 }
 
-func pageUp(buf *Buffer) {
+func pageUp(buf *Buffer, w,h int) {
     log.Println("Page up")
-    start := searchBackPage(buf.Data.Text, buf.Formatter)
+    start := SearchBackPage(buf.Data.Text, buf.Formatter, w, h)
     log.Println("New start at ", start)
     buf.Formatter.FirstDrawnCharPos = start
     buf.Formatter.Cursor = buf.Formatter.FirstDrawnCharPos
 }
 func handleEvent(a app.App, i interface{}) {
 	log.Println(i)
-    dumpBuffer(gc.ActiveBuffer)
+    DumpBuffer(gc.ActiveBuffer)
 	switch e := a.Filter(i).(type) {
 	case key.Event:
      switch e.Code {
@@ -238,7 +274,7 @@ func handleEvent(a app.App, i interface{}) {
                     //gc.ActiveBuffer.Line = gc.ActiveBuffer.Line -24
                     //if gc.ActiveBuffer.Line < 0 { gc.ActiveBuffer.Line = 0 }
                     //Page up
-                    pageUp(gc.ActiveBuffer)
+                    pageUp(gc.ActiveBuffer, screenWidth, screenHeight)
             default:
        if gc.ActiveBuffer.InputMode {
             switch e.Code {
@@ -321,13 +357,13 @@ func handleEvent(a app.App, i interface{}) {
                     }
                 case '+':
                   gc.ActiveBuffer.Formatter.FontSize += 1
-                  clearAllCaches()
+                  glim.ClearAllCaches()
                 case '-':
                   gc.ActiveBuffer.Formatter.FontSize -= 1
-                  clearAllCaches()
+                  glim.ClearAllCaches()
                 case 'B':
-                  clearAllCaches()
-                  log2Buff("Caches cleared")
+                  glim.ClearAllCaches()
+                  Log2Buff("Caches cleared")
                   log.Println("Caches cleared")
 
             }
