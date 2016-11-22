@@ -45,6 +45,7 @@ import (
     "golang.org/x/mobile/app"
     "golang.org/x/mobile/event/lifecycle"
     "golang.org/x/mobile/event/paint"
+    "golang.org/x/mobile/event/mouse"
     "golang.org/x/mobile/event/size"
     "golang.org/x/mobile/event/touch"
     "golang.org/x/mobile/exp/app/debug"
@@ -65,6 +66,8 @@ import "github.com/go-gl/mathgl/mgl32"
 var multiSample = uint(1)  //Make the internal pixel buffer larger to enable multisampling and eventually GL anti-aliasing
 var pixelTweakX =0
 var pixelTweakY =0
+var cursorX = 0
+var cursorY = 0
 var clientWidth=uint(800*multiSample)
 var clientHeight=uint(600*multiSample)
 var u8Pix []uint8
@@ -285,9 +288,18 @@ B Clear all caches
                         e.Code = key.CodeQ
                     }
                 }
+            case mouse.Event:
+                log.Printf("%v", e)
+                //cursorX = int(e.X/2)
+                //cursorY = int(e.Y)
             case touch.Event:
-                theatreCamera = mgl32.LookAt(0.0, 0.0, 0.1, 0.0, 0.0, -0.5, 0.0, 1.0, 0.0)
+                //theatreCamera = mgl32.LookAt(0.0, 0.0, 0.1, 0.0, 0.0, -0.5, 0.0, 1.0, 0.0)
+                    cursorX = int(e.X/2)
+                    cursorY = int(e.Y)
                 if e.Type == touch.TypeBegin {
+                    cPos := glim.RenderPara(gc.ActiveBuffer.Formatter, 0, 0, screenWidth, screenHeight, screenWidth, screenHeight, cursorX, cursorY, u8Pix, gc.ActiveBuffer.Data.Text, false,false,false)
+                    gc.ActiveBuffer.Formatter.Cursor = cPos
+                    log.Printf("%v,%v", e.X,e.Y)
                     reCalcNeeded = true
                     selection++
                     if selection +1  > len(gallery) {
@@ -366,11 +378,8 @@ func NewBuffer() *Buffer{
 
 func onStart(glctx gl.Context) {
     //For some reason, the framework feeds us the wrong window size at start.  Luckily we can query the context directly
-    outbuff := []int32{0,0,0,0}
-    glctx.GetIntegerv(outbuff, gl.VIEWPORT)
-    log.Printf("Start viewport: %v\n", outbuff)
-    screenWidth = int(outbuff[2])
-    screenHeight = int(outbuff[3])
+    screenWidth, screenHeight = glim.ScreenSize(glctx)
+    log.Printf("Start viewport: %v,%v\n", screenWidth, screenHeight)
     reCalcNeeded = true
     reDimBuff(int(screenWidth),int(screenHeight))
 
@@ -469,7 +478,7 @@ func onPaint(glctx gl.Context, sz size.Event) {
     for i, _:= range u8Pix {
         u8Pix[i] = 0
     }
-    glim.RenderPara(gc.ActiveBuffer.Formatter, 0, 0, screenWidth, screenHeight, u8Pix, gc.ActiveBuffer.Data.Text, true, true, true)
+    glim.RenderPara(gc.ActiveBuffer.Formatter, 0, 0, screenWidth, screenHeight, screenWidth, screenHeight, cursorX, cursorY, u8Pix, gc.ActiveBuffer.Data.Text, true, true, true)
     glctx.Enable(gl.BLEND)
     glctx.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
     glctx.Enable( gl.DEPTH_TEST );
@@ -530,14 +539,15 @@ func onPaint(glctx gl.Context, sz size.Event) {
     // Tell the texture uniform sampler to use this texture in the shader by binding to texture unit 0.
     glctx.Uniform1i(u_Texture, 0);
 
-    glctx.Viewport(0,0, sz.WidthPx/2, sz.HeightPx)
+    glctx.Viewport(0,0, sz.WidthPx, sz.HeightPx)
     glctx.DrawArrays(gl.TRIANGLES, 0, 6)
 
 
+/*
     for i, _:= range u8Pix {
         u8Pix[i] = 0
     }
-    glim.RenderPara(gc.StatusBuffer.Formatter, 0, 0, screenWidth, screenHeight, u8Pix, gc.StatusBuffer.Data.Text, true, true, false)
+    glim.RenderPara(gc.StatusBuffer.Formatter, 0, 0, screenWidth/2, screenHeight, screenWidth/2, screenHeight, u8Pix, gc.StatusBuffer.Data.Text, true, true, false)
 
     //for i:=1 ; i<len(u8Pix)-1; i++ {
         //outBytes[i] = u8Pix[i] // (u8Pix[i-1] + 2*u8Pix[i] +u8Pix[i+1])/4
@@ -547,6 +557,7 @@ func onPaint(glctx gl.Context, sz size.Event) {
     glctx.TexImage2D(gl.TEXTURE_2D, 0, int(clientWidth), int(clientHeight), gl.RGBA, gl.UNSIGNED_BYTE, u8Pix)
     glctx.Viewport(sz.WidthPx/2,0, sz.WidthPx/2, sz.HeightPx)
     glctx.DrawArrays(gl.TRIANGLES, 0, 6)
+*/
     glctx.DisableVertexAttribArray(position)
 
 }

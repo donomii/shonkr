@@ -36,7 +36,7 @@ func SearchBackPage(txtBuf string, orig_f *glim.FormatParams, screenWidth, scree
 		f := input
 		f.FirstDrawnCharPos = x
         
-		glim.RenderPara(&f, 0, 0, screenWidth, screenHeight, nil, txtBuf, false, false, false)
+		glim.RenderPara(&f, 0, 0, screenWidth/2, screenHeight, screenWidth/2, screenHeight, 0,0, nil, txtBuf, false, false, false)
 		newLastDrawn = f.LastDrawnCharPos
 	}
 	return x
