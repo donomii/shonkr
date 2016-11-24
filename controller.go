@@ -314,9 +314,11 @@ func handleEvent(a app.App, i interface{}) {
                     }
                     gc.ActiveBuffer = gc.BufferList[gc.ActiveBufferId]
                     log.Printf("Next buffer: %v", gc.ActiveBufferId)
-                case 'V':
+                case 'p':
                     text, _ := clipboard.ReadAll()
                     gc.ActiveBuffer.Data.Text = fmt.Sprintf("%s%s%s",gc.ActiveBuffer.Data.Text[:gc.ActiveBuffer.Formatter.Cursor], text,gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.Cursor:])
+                case 'y':
+                    clipboard.WriteAll(gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.SelectStart:gc.ActiveBuffer.Formatter.SelectEnd])
                 case '~':
                     saveFile(gc.ActiveBuffer.Data.FileName, gc.ActiveBuffer.Data.Text)
                 case 'i':

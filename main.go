@@ -29,7 +29,6 @@
 package main
 
 import "github.com/pkg/profile"
-import "image/color"
 import (
 "github.com/donomii/glim"
 "golang.org/x/mobile/event/key"
@@ -178,7 +177,7 @@ func do_profile() {
 
 func main() {
     gc.ActiveBuffer = NewBuffer()
-    gc.ActiveBuffer.Formatter = NewFormatter()
+    gc.ActiveBuffer.Formatter = glim.NewFormatter()
     gc.ActiveBuffer.Data.Text=`
 Welcome to the shonky editor
 ----------------------------
@@ -299,6 +298,8 @@ B Clear all caches
                 if e.Type == touch.TypeBegin {
                     cPos := glim.RenderPara(gc.ActiveBuffer.Formatter, 0, 0, screenWidth, screenHeight, screenWidth, screenHeight, cursorX, cursorY, u8Pix, gc.ActiveBuffer.Data.Text, false,false,false)
                     gc.ActiveBuffer.Formatter.Cursor = cPos
+                    gc.ActiveBuffer.Formatter.SelectStart = cPos
+                    gc.ActiveBuffer.Formatter.SelectEnd = cPos
                     log.Printf("%v,%v", e.X,e.Y)
                     reCalcNeeded = true
                     selection++
@@ -306,6 +307,11 @@ B Clear all caches
                         selection=0
                     }
                 }
+                if e.Type == touch.TypeMove {
+                    cPos := glim.RenderPara(gc.ActiveBuffer.Formatter, 0, 0, screenWidth, screenHeight, screenWidth, screenHeight, cursorX, cursorY, u8Pix, gc.ActiveBuffer.Data.Text, false,false,false)
+                    gc.ActiveBuffer.Formatter.SelectEnd = cPos
+                }
+                fmt.Println(gc.ActiveBuffer.Formatter.SelectEnd)
             }
         }
     })
@@ -363,14 +369,11 @@ func reDimBuff(x,y int) {
 
 var fname string
 
-func NewFormatter() *glim.FormatParams{
-    return &glim.FormatParams{&color.RGBA{1,1,1,255},0,0,0, 36.0,0,0, false, true, true}
-}
 
 func NewBuffer() *Buffer{
     buf := &Buffer{}
     buf.Data = &BufferData{}
-    buf.Formatter = NewFormatter()
+    buf.Formatter = glim.NewFormatter()
     buf.Data.Text = ""
     buf.Data.FileName = ""
     return buf
