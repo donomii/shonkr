@@ -296,7 +296,7 @@ B Clear all caches
                     cursorX = int(e.X/2)
                     cursorY = int(e.Y)
                 if e.Type == touch.TypeBegin {
-                    cPos := glim.RenderPara(gc.ActiveBuffer.Formatter, 0, 0, screenWidth, screenHeight, screenWidth, screenHeight, cursorX, cursorY, u8Pix, gc.ActiveBuffer.Data.Text, false,false,false)
+                    cPos, _, _ := glim.RenderPara(gc.ActiveBuffer.Formatter, 0, 0, 0, 0, screenWidth, screenHeight, screenWidth, screenHeight, cursorX, cursorY, u8Pix, gc.ActiveBuffer.Data.Text, false,false,false)
                     gc.ActiveBuffer.Formatter.Cursor = cPos
                     gc.ActiveBuffer.Formatter.SelectStart = cPos
                     gc.ActiveBuffer.Formatter.SelectEnd = cPos
@@ -308,7 +308,7 @@ B Clear all caches
                     }
                 }
                 if e.Type == touch.TypeMove {
-                    cPos := glim.RenderPara(gc.ActiveBuffer.Formatter, 0, 0, screenWidth, screenHeight, screenWidth, screenHeight, cursorX, cursorY, u8Pix, gc.ActiveBuffer.Data.Text, false,false,false)
+                    cPos, _, _ := glim.RenderPara(gc.ActiveBuffer.Formatter, 0, 0, 0, 0, screenWidth, screenHeight, screenWidth, screenHeight, cursorX, cursorY, u8Pix, gc.ActiveBuffer.Data.Text, false,false,false)
                     gc.ActiveBuffer.Formatter.SelectEnd = cPos
                 }
                 fmt.Println(gc.ActiveBuffer.Formatter.SelectEnd)
@@ -481,7 +481,7 @@ func onPaint(glctx gl.Context, sz size.Event) {
     for i, _:= range u8Pix {
         u8Pix[i] = 0
     }
-    glim.RenderPara(gc.ActiveBuffer.Formatter, 0, 0, screenWidth, screenHeight, screenWidth, screenHeight, cursorX, cursorY, u8Pix, gc.ActiveBuffer.Data.Text, true, true, true)
+    glim.RenderPara(gc.ActiveBuffer.Formatter, 0, 0, 0, 0, screenWidth, screenHeight, screenWidth, screenHeight, cursorX, cursorY, u8Pix, gc.ActiveBuffer.Data.Text, true, true, true)
     glctx.Enable(gl.BLEND)
     glctx.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
     glctx.Enable( gl.DEPTH_TEST );
@@ -550,7 +550,7 @@ func onPaint(glctx gl.Context, sz size.Event) {
     for i, _:= range u8Pix {
         u8Pix[i] = 0
     }
-    glim.RenderPara(gc.StatusBuffer.Formatter, 0, 0, screenWidth/2, screenHeight, screenWidth/2, screenHeight, u8Pix, gc.StatusBuffer.Data.Text, true, true, false)
+    glim.RenderPara(gc.StatusBuffer.Formatter, 0, 0, 0, 0, screenWidth/2, screenHeight, screenWidth/2, screenHeight, u8Pix, gc.StatusBuffer.Data.Text, true, true, false)
 
     //for i:=1 ; i<len(u8Pix)-1; i++ {
         //outBytes[i] = u8Pix[i] // (u8Pix[i-1] + 2*u8Pix[i] +u8Pix[i+1])/4
