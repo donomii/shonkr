@@ -36,7 +36,7 @@ func SearchBackPage(txtBuf string, orig_f *glim.FormatParams, screenWidth, scree
 		f := input
 		f.FirstDrawnCharPos = x
         
-		glim.RenderPara(&f, 0, 0, screenWidth/2, screenHeight, screenWidth/2, screenHeight, 0,0, nil, txtBuf, false, false, false)
+		glim.RenderPara(&f, 0, 0, 0, 0, screenWidth/2, screenHeight, screenWidth/2, screenHeight, 0,0, nil, txtBuf, false, false, false)
 		newLastDrawn = f.LastDrawnCharPos
 	}
 	return x
@@ -149,18 +149,6 @@ func check(e error, msg string) {
     }
 }
 
-func scrollToCursor(f *glim.FormatParams, txt string) {
-    log.Printf("Scrolling to cursor")
-    cursor := f.Cursor
-    for i:=0; i<5; i++ {
-        cursor = scanToPrevLine(txt, cursor)
-    }
-
-    log.Printf("Scrolling to cursor at\n")
-    f.FirstDrawnCharPos = cursor
-    //start := searchBackPage(buf.Text, buf.Formatter)
-}
-
 func processPort(r io.Reader) {
     for {
         buf := make([]byte, 1)
@@ -237,6 +225,11 @@ func pageDown(buf *Buffer) {
     buf.Formatter.Cursor = buf.Formatter.FirstDrawnCharPos
 }
 
+func scrollToCursor(buf *Buffer){
+    buf.Formatter.FirstDrawnCharPos = buf.Formatter.Cursor
+}
+
+
 func pageUp(buf *Buffer, w,h int) {
     log.Println("Page up")
     start := SearchBackPage(buf.Data.Text, buf.Formatter, w, h)
@@ -244,6 +237,7 @@ func pageUp(buf *Buffer, w,h int) {
     buf.Formatter.FirstDrawnCharPos = start
     buf.Formatter.Cursor = buf.Formatter.FirstDrawnCharPos
 }
+
 func handleEvent(a app.App, i interface{}) {
 	log.Println(i)
     DumpBuffer(gc.ActiveBuffer)
@@ -377,5 +371,8 @@ func handleEvent(a app.App, i interface{}) {
         log.Println("Advancing screen to cursor")
         //gc.ActiveBuffer.Formatter.FirstDrawnCharPos = scanToNextLine (gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.FirstDrawnCharPos)
         //gc.ActiveBuffer.Formatter.FirstDrawnCharPos = scanToPrevLine (gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
+    }
+    if (gc.ActiveBuffer.Formatter.Cursor <gc.ActiveBuffer.Formatter.FirstDrawnCharPos || gc.ActiveBuffer.Formatter.Cursor > gc.ActiveBuffer.Formatter.LastDrawnCharPos) {
+        scrollToCursor(gc.ActiveBuffer);
     }
 }
