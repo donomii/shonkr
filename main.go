@@ -288,7 +288,7 @@ B Clear all caches
                     }
                 }
             case mouse.Event:
-                log.Printf("%v", e)
+                //log.Printf("%v", e)
                 //cursorX = int(e.X/2)
                 //cursorY = int(e.Y)
             case touch.Event:
