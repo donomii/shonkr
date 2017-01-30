@@ -1,0 +1,9 @@
+Considerations
+
+Transparency - black background vs white
+
+Vertical text - ability to detect oob and correctly move to next line
+
+text at angle?
+
+Soft oob vs hard oob - ability to flow around (and past) obstacles vs force newline when outside page
