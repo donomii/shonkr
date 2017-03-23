@@ -238,11 +238,34 @@ func exciseSelection(buf *Buffer) {
     buf.Formatter.SelectEnd = 0
 }
 
+func reduceFont(buf *Buffer) {
+  buf.Formatter.FontSize -= 1
+  glim.ClearAllCaches()
+
+}
+
+func increaseFont(buf *Buffer) {
+  buf.Formatter.FontSize += 1
+  glim.ClearAllCaches()
+}
+
+func doPageDown(buf *Buffer) {
+    pageDown(gc.ActiveBuffer)
+}
+
 func dispatch (command string, gc GlobalConfig) {
 
     switch command {
         case "EXCISE-SELECTION":
             exciseSelection(gc.ActiveBuffer)
+        case "REDUCE-FONT":
+            reduceFont(gc.ActiveBuffer)
+        case "INCREASE-FONT":
+            increaseFont(gc.ActiveBuffer)
+        case "PAGEDOWN":
+            doPageDown(gc.ActiveBuffer)
+        case "SEEK-EOL":
+            gc.ActiveBuffer.Formatter.Cursor = scanToEndOfLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
     }
 }
 
@@ -269,7 +292,7 @@ func handleEvent(a app.App, i interface{}) {
             case key.CodeHome:
                 gc.ActiveBuffer.Formatter.Cursor = SOL(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
             case key.CodeEnd:
-                   gc.ActiveBuffer.Formatter.Cursor = scanToEndOfLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
+                   dispatch("SEEK-EOL", gc)
             case key.CodeLeftArrow:
                 gc.ActiveBuffer.Formatter.Cursor = gc.ActiveBuffer.Formatter.Cursor-1
             case key.CodeRightArrow:
@@ -279,8 +302,7 @@ func handleEvent(a app.App, i interface{}) {
             case key.CodeDownArrow:
                 gc.ActiveBuffer.Formatter.Cursor = scanToNextLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
             case key.CodePageDown:
-                    //page down
-                    pageDown(gc.ActiveBuffer)
+                dispatch("PAGEDOWN", gc)
             case key.CodePageUp:
                     //gc.ActiveBuffer.Line = gc.ActiveBuffer.Line -24
                     //if gc.ActiveBuffer.Line < 0 { gc.ActiveBuffer.Line = 0 }
@@ -384,11 +406,9 @@ func handleEvent(a app.App, i interface{}) {
                         gc.ActiveBuffer.Formatter.Vertical = true
                     }
                 case '+':
-                  gc.ActiveBuffer.Formatter.FontSize += 1
-                  glim.ClearAllCaches()
+                    dispatch("INCREASE-FONT", gc)
                 case '-':
-                  gc.ActiveBuffer.Formatter.FontSize -= 1
-                  glim.ClearAllCaches()
+                    dispatch("REDUCE-FONT", gc)
                 case 'B':
                   glim.ClearAllCaches()
                   Log2Buff("Caches cleared")
