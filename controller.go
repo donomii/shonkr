@@ -230,12 +230,20 @@ func scrollToCursor(buf *Buffer){
 }
 
 func exciseSelection(buf *Buffer) {
-    log.Println("Clipping from ", gc.ActiveBuffer.Formatter.SelectStart, " to ", gc.ActiveBuffer.Formatter.SelectEnd)
-    gc.ActiveBuffer.Data.Text = fmt.Sprintf("%s%s",
-        gc.ActiveBuffer.Data.Text[:gc.ActiveBuffer.Formatter.SelectStart],
-        gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.SelectEnd+1:])
-    gc.ActiveBuffer.Formatter.SelectStart = 0
-    gc.ActiveBuffer.Formatter.SelectEnd = 0
+    log.Println("Clipping from ", buf.Formatter.SelectStart, " to ", buf.Formatter.SelectEnd)
+    buf.Data.Text = fmt.Sprintf("%s%s",
+        buf.Data.Text[:buf.Formatter.SelectStart],
+        buf.Data.Text[buf.Formatter.SelectEnd+1:])
+    buf.Formatter.SelectStart = 0
+    buf.Formatter.SelectEnd = 0
+}
+
+func dispatch (command string, gc GlobalConfig) {
+
+    switch command {
+        case "EXCISE-SELECTION":
+            exciseSelection(gc.ActiveBuffer)
+    }
 }
 
 
@@ -292,7 +300,7 @@ func handleEvent(a app.App, i interface{}) {
                         gc.ActiveBuffer.InputMode = false
                     default:
                         if gc.ActiveBuffer.Formatter.SelectEnd > 0 {
-                            exciseSelection(gc.ActiveBuffer)
+                            dispatch("EXCISE-SELECTION", gc)
                         }
                         gc.ActiveBuffer.Data.Text = fmt.Sprintf("%s%s%s",gc.ActiveBuffer.Data.Text[:gc.ActiveBuffer.Formatter.Cursor], string(e.Rune),gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.Cursor:])
                         gc.ActiveBuffer.Formatter.Cursor++
@@ -303,7 +311,7 @@ func handleEvent(a app.App, i interface{}) {
             switch e.Code {
             case key.CodeX:
                 if e.Modifiers >0 {
-                    exciseSelection(gc.ActiveBuffer)
+                    dispatch("EXCISE-SELECTION", gc)
                 }
                 
             case key.CodeA:
@@ -332,7 +340,7 @@ func handleEvent(a app.App, i interface{}) {
                 case 'p':
                     text, _ := clipboard.ReadAll()
                     if gc.ActiveBuffer.Formatter.SelectEnd > 0 {
-                        exciseSelection(gc.ActiveBuffer)
+                        dispatch("EXCISE-SELECTION", gc)
                     }
                     gc.ActiveBuffer.Data.Text = fmt.Sprintf("%s%s%s",gc.ActiveBuffer.Data.Text[:gc.ActiveBuffer.Formatter.Cursor], text,gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.Cursor:])
                 case 'y':
