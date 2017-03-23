@@ -62,6 +62,7 @@ import (
 import "github.com/go-gl/mathgl/mgl32"
         import "golang.org/x/mobile/exp/sensor"
 
+var gc GlobalConfig
 var multiSample = uint(1)  //Make the internal pixel buffer larger to enable multisampling and eventually GL anti-aliasing
 var pixelTweakX =0
 var pixelTweakY =0
@@ -584,7 +585,6 @@ type Buffer struct {
     Formatter *glim.FormatParams
 }
 
-var gc GlobalConfig
 
 
 type vertexMeta struct {
