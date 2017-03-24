@@ -116,7 +116,11 @@ func scanToNextLine (txt string, c int) int{
     letters := strings.Split(txt, "")
     x:=c
     for x= c+1; x>1 && x<len(txt) && !( letters[x-1]== "\n"); x++ {}
-    return x
+    if x == len(txt) {
+        return c
+    } else {
+        return x
+    }
 }
 
 
@@ -152,11 +156,11 @@ func check(e error, msg string) {
 func processPort(r io.Reader) {
     for {
         buf := make([]byte, 1)
-        if _, err := io.ReadAtLeast(r, buf, 1); err != nil {
+        if _, err := io.ReadAtLeast(r, buf, 5); err != nil {
             //log.Fatal(err)
         }
-        buffAppend(1, string(buf))
-        gc.BufferList[1].Formatter.Cursor = len(gc.BufferList[1].Data.Text)
+        activeBufferAppend(string(buf))
+        gc.ActiveBuffer.Formatter.Cursor = len(gc.ActiveBuffer.Data.Text)
     }
 }
 
@@ -164,6 +168,9 @@ func buffAppend ( buffId int, txt string ) {
         gc.BufferList[1].Data.Text = strings.Join([]string{gc.BufferList[1].Data.Text,txt}, "")
 }
 
+func activeBufferAppend ( txt string ) {
+        gc.ActiveBuffer.Data.Text = strings.Join([]string{gc.ActiveBuffer.Data.Text,txt}, "")
+}
 
 func SSHAgent() ssh.AuthMethod {
     if sshAgent, err := net.Dial("unix", os.Getenv("SSH_AUTH_SOCK")); err == nil {
@@ -173,7 +180,7 @@ func SSHAgent() ssh.AuthMethod {
 }
 
 func startSshConn(buffId int, user, password, serverAndPort string) {
-                    buffAppend(buffId, "Starting ssh connection\n")
+                    activeBufferAppend("Starting ssh connection\n")
                     config := &ssh.ClientConfig{
                         User: user,
                         Auth: []ssh.AuthMethod{
@@ -183,8 +190,8 @@ func startSshConn(buffId int, user, password, serverAndPort string) {
                     }
 
                     // Dial your ssh server.
-                    buffAppend(buffId, fmt.Sprintf("Connecting to ssh server as user %v: ", user))
-                    buffAppend(buffId, serverAndPort)
+                    activeBufferAppend(fmt.Sprintf("Connecting to ssh server as user %v: ", user))
+                    activeBufferAppend(serverAndPort)
                     conn, err := ssh.Dial("tcp", serverAndPort, config)
                     if err != nil {
                         log.Fatal("unable to connect: ", err)
@@ -207,7 +214,7 @@ func startSshConn(buffId int, user, password, serverAndPort string) {
                     }
                     //go io.Copy(os.Stdout, stdout)
                     go processPort(stdout)
-                    gc.BufferList[1].Formatter.TailBuffer = true
+                    dispatch("TAIL", gc)
 
                     stderr, err := session.StderrPipe()
                     if err != nil {
@@ -230,12 +237,16 @@ func scrollToCursor(buf *Buffer){
 }
 
 func exciseSelection(buf *Buffer) {
-    log.Println("Clipping from ", buf.Formatter.SelectStart, " to ", buf.Formatter.SelectEnd)
-    buf.Data.Text = fmt.Sprintf("%s%s",
-        buf.Data.Text[:buf.Formatter.SelectStart],
-        buf.Data.Text[buf.Formatter.SelectEnd+1:])
-    buf.Formatter.SelectStart = 0
-    buf.Formatter.SelectEnd = 0
+    if buf.Formatter.SelectStart >= 0 && buf.Formatter.SelectStart < len(buf.Data.Text) {
+        if buf.Formatter.SelectEnd > 0 && buf.Formatter.SelectEnd < len(buf.Data.Text) {
+            log.Println("Clipping from ", buf.Formatter.SelectStart, " to ", buf.Formatter.SelectEnd)
+            buf.Data.Text = fmt.Sprintf("%s%s",
+            buf.Data.Text[:buf.Formatter.SelectStart],
+            buf.Data.Text[buf.Formatter.SelectEnd+1:])
+            buf.Formatter.SelectStart = 0
+            buf.Formatter.SelectEnd = 0
+        }
+    }
 }
 
 func reduceFont(buf *Buffer) {
@@ -277,9 +288,12 @@ func toggleVerticalMode(gc GlobalConfig) {
 
 func pasteFromClipBoard(buf *Buffer) {
     text, _ := clipboard.ReadAll()
-    if gc.ActiveBuffer.Formatter.SelectEnd > 0 {
-        dispatch("EXCISE-SELECTION", gc)
-    }
+    dispatch("EXCISE-SELECTION", gc)
+
+if gc.ActiveBuffer.Formatter.Cursor < 0 {
+    gc.ActiveBuffer.Formatter.Cursor = 0
+}
+   
     gc.ActiveBuffer.Data.Text = fmt.Sprintf("%s%s%s",gc.ActiveBuffer.Data.Text[:gc.ActiveBuffer.Formatter.Cursor], text,gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.Cursor:])
 }
 
@@ -320,11 +334,15 @@ func dispatch (command string, gc GlobalConfig) {
         case "PASTE-FROM-CLIPBOARD":
             pasteFromClipBoard(gc.ActiveBuffer)
         case "COPY-TO-CLIPBOARD":
-            clipboard.WriteAll(gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.SelectStart:gc.ActiveBuffer.Formatter.SelectEnd])
+            clipboard.WriteAll(gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.SelectStart:gc.ActiveBuffer.Formatter.SelectEnd+1])
         case "SAVE-FILE":
             saveFile(gc.ActiveBuffer.Data.FileName, gc.ActiveBuffer.Data.Text)
         case "END-OF-LINE":
            gc.ActiveBuffer.Formatter.Cursor = scanToEndOfLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
+        case "TAIL":
+            gc.ActiveBuffer.Formatter.TailBuffer = true
+        case "START-OF-TEXT-ON-LINE":
+           gc.ActiveBuffer.Formatter.Cursor = SOT(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
     }
 }
 
@@ -364,6 +382,31 @@ func handleEvent(a app.App, i interface{}) {
                 dispatch("PAGEDOWN", gc)
             case key.CodePageUp:
                 dispatch("PAGEUP", gc)
+            case key.CodeA:
+                if e.Modifiers >0 {
+                    gc.ActiveBuffer.Formatter.SelectStart = 0
+                    gc.ActiveBuffer.Formatter.SelectEnd = len(gc.ActiveBuffer.Data.Text) -1
+                    return
+                }
+            case key.CodeC:
+                if e.Modifiers >0 {
+                    dispatch("COPY-TO-CLIPBOARD", gc)
+                    return
+                }
+            case key.CodeX:
+                if e.Modifiers >0 {
+                    dispatch("COPY-TO-CLIPBOARD", gc)
+                    dispatch("EXCISE-SELECTION", gc)
+                    gc.ActiveBuffer.Formatter.Cursor = gc.ActiveBuffer.Formatter.SelectStart 
+                    gc.ActiveBuffer.Formatter.SelectStart = -1
+                    gc.ActiveBuffer.Formatter.SelectEnd = -1
+                    return
+                }
+            case key.CodeV:
+                if e.Modifiers >0 {
+                    dispatch("EXCISE-SELECTION", gc)
+                    dispatch("PASTE-FROM-CLIPBOARD", gc)
+                }
             default:
        if gc.ActiveBuffer.InputMode {
             switch e.Code {
@@ -380,6 +423,11 @@ func handleEvent(a app.App, i interface{}) {
                         if gc.ActiveBuffer.Formatter.SelectEnd > 0 {
                             dispatch("EXCISE-SELECTION", gc)
                         }
+
+if gc.ActiveBuffer.Formatter.Cursor < 0 {
+    gc.ActiveBuffer.Formatter.Cursor = 0
+}
+                        fmt.Printf("Inserting at %v, length %v\n", gc.ActiveBuffer.Formatter.Cursor, len(gc.ActiveBuffer.Data.Text))
                         gc.ActiveBuffer.Data.Text = fmt.Sprintf("%s%s%s",gc.ActiveBuffer.Data.Text[:gc.ActiveBuffer.Formatter.Cursor], string(e.Rune),gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.Cursor:])
                         gc.ActiveBuffer.Formatter.Cursor++
                 }
@@ -387,17 +435,8 @@ func handleEvent(a app.App, i interface{}) {
             }
         } else {
             switch e.Code {
-            case key.CodeX:
-                if e.Modifiers >0 {
-                    dispatch("COPY-TO-CLIPBOARD", gc)
-                    dispatch("EXCISE-SELECTION", gc)
-                }
                 
             case key.CodeA:
-                if e.Modifiers >0 {
-                    gc.ActiveBuffer.Formatter.SelectStart = 0
-                    gc.ActiveBuffer.Formatter.SelectEnd = len(gc.ActiveBuffer.Data.Text)
-                }
                 gc.ActiveBuffer.Formatter.Cursor = gc.ActiveBuffer.Formatter.Cursor-1
             case key.CodeD:
                 gc.ActiveBuffer.Formatter.Cursor = gc.ActiveBuffer.Formatter.Cursor+1
@@ -420,9 +459,9 @@ func handleEvent(a app.App, i interface{}) {
                 case 'i':
                    dispatch("INPUT-MODE", gc)
                 case '0':
-                   dispatch("START-OF-TEXT", gc)
+                   dispatch("START-OF-LINE", gc)
                 case '^':
-                   gc.ActiveBuffer.Formatter.Cursor = SOT(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
+                    dispatch("START-OF-TEXT-ON-LINE", gc)
                 case '$':
                    dispatch("END-OF-LINE", gc)
                 case 'A':
@@ -440,7 +479,7 @@ func handleEvent(a app.App, i interface{}) {
                 case 'h':
                    dispatch("PREVIOUS-CHARACTER", gc)
                 case 'T':
-                    gc.ActiveBuffer.Formatter.TailBuffer = true
+                   dispatch("TAIL", gc)
                 case 'W':
                     if gc.ActiveBuffer.Formatter.Outline {
                         gc.ActiveBuffer.Formatter.Outline = false
@@ -468,6 +507,10 @@ func handleEvent(a app.App, i interface{}) {
         //gc.ActiveBuffer.Formatter.FirstDrawnCharPos = scanToNextLine (gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.FirstDrawnCharPos)
         //gc.ActiveBuffer.Formatter.FirstDrawnCharPos = scanToPrevLine (gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
     }
+
+if gc.ActiveBuffer.Formatter.Cursor < 0 {
+    gc.ActiveBuffer.Formatter.Cursor = 0
+}
     if (gc.ActiveBuffer.Formatter.Cursor <gc.ActiveBuffer.Formatter.FirstDrawnCharPos || gc.ActiveBuffer.Formatter.Cursor > gc.ActiveBuffer.Formatter.LastDrawnCharPos) {
         scrollToCursor(gc.ActiveBuffer);
     }
