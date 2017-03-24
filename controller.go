@@ -253,8 +253,37 @@ func doPageDown(buf *Buffer) {
     pageDown(gc.ActiveBuffer)
 }
 
-func dispatch (command string, gc GlobalConfig) {
+func previousCharacter(buf *Buffer) {
+    buf.Formatter.Cursor = buf.Formatter.Cursor-1
+}
 
+func nextBuffer(gc GlobalConfig) {
+                    gc.ActiveBufferId ++
+                    if gc.ActiveBufferId>len(gc.BufferList)-1 {
+                        gc.ActiveBufferId = 0
+                    }
+                    gc.ActiveBuffer = gc.BufferList[gc.ActiveBufferId]
+                    log.Printf("Next buffer: %v", gc.ActiveBufferId)
+}
+
+func toggleVerticalMode(gc GlobalConfig) {
+    if gc.ActiveBuffer.Formatter.Vertical {
+        dispatch("HORIZONTAL-MODE", gc)
+    } else {
+        dispatch("VERTICAL-MODE", gc)
+    }
+}
+
+
+func pasteFromClipBoard(buf *Buffer) {
+    text, _ := clipboard.ReadAll()
+    if gc.ActiveBuffer.Formatter.SelectEnd > 0 {
+        dispatch("EXCISE-SELECTION", gc)
+    }
+    gc.ActiveBuffer.Data.Text = fmt.Sprintf("%s%s%s",gc.ActiveBuffer.Data.Text[:gc.ActiveBuffer.Formatter.Cursor], text,gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.Cursor:])
+}
+
+func dispatch (command string, gc GlobalConfig) {
     switch command {
         case "EXCISE-SELECTION":
             exciseSelection(gc.ActiveBuffer)
@@ -264,8 +293,38 @@ func dispatch (command string, gc GlobalConfig) {
             increaseFont(gc.ActiveBuffer)
         case "PAGEDOWN":
             doPageDown(gc.ActiveBuffer)
+        case "PAGEUP":
+            pageUp(gc.ActiveBuffer, screenWidth, screenHeight)
         case "SEEK-EOL":
             gc.ActiveBuffer.Formatter.Cursor = scanToEndOfLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
+        case "PREVIOUS-CHARACTER":
+            previousCharacter(gc.ActiveBuffer)
+        case "NEXT-CHARACTER":
+            gc.ActiveBuffer.Formatter.Cursor = gc.ActiveBuffer.Formatter.Cursor+1
+        case "PREVIOUS-LINE":
+            gc.ActiveBuffer.Formatter.Cursor = scanToPrevLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
+        case "NEXT-LINE":
+            gc.ActiveBuffer.Formatter.Cursor = scanToNextLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
+        case "NEXT-BUFFER":
+            nextBuffer(gc)
+        case "INPUT-MODE":
+            gc.ActiveBuffer.InputMode = true
+        case "START-OF-LINE":
+           gc.ActiveBuffer.Formatter.Cursor = SOL(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
+        case "HORIZONTAL-MODE":
+            gc.ActiveBuffer.Formatter.Vertical = false
+        case "VERTICAL-MODE":
+            gc.ActiveBuffer.Formatter.Vertical = true
+        case "TOGGLE-VERTICAL-MODE":
+            toggleVerticalMode(gc)
+        case "PASTE-FROM-CLIPBOARD":
+            pasteFromClipBoard(gc.ActiveBuffer)
+        case "COPY-TO-CLIPBOARD":
+            clipboard.WriteAll(gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.SelectStart:gc.ActiveBuffer.Formatter.SelectEnd])
+        case "SAVE-FILE":
+            saveFile(gc.ActiveBuffer.Data.FileName, gc.ActiveBuffer.Data.Text)
+        case "END-OF-LINE":
+           gc.ActiveBuffer.Formatter.Cursor = scanToEndOfLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
     }
 }
 
@@ -294,20 +353,17 @@ func handleEvent(a app.App, i interface{}) {
             case key.CodeEnd:
                    dispatch("SEEK-EOL", gc)
             case key.CodeLeftArrow:
-                gc.ActiveBuffer.Formatter.Cursor = gc.ActiveBuffer.Formatter.Cursor-1
+                   dispatch("PREVIOUS-CHARACTER", gc)
             case key.CodeRightArrow:
-                gc.ActiveBuffer.Formatter.Cursor = gc.ActiveBuffer.Formatter.Cursor+1
+                   dispatch("NEXT-CHARACTER", gc)
             case key.CodeUpArrow:
-                gc.ActiveBuffer.Formatter.Cursor = scanToPrevLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
+                   dispatch("PREVIOUS-LINE", gc)
             case key.CodeDownArrow:
-                gc.ActiveBuffer.Formatter.Cursor = scanToNextLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
+                   dispatch("NEXT-LINE", gc)
             case key.CodePageDown:
                 dispatch("PAGEDOWN", gc)
             case key.CodePageUp:
-                    //gc.ActiveBuffer.Line = gc.ActiveBuffer.Line -24
-                    //if gc.ActiveBuffer.Line < 0 { gc.ActiveBuffer.Line = 0 }
-                    //Page up
-                    pageUp(gc.ActiveBuffer, screenWidth, screenHeight)
+                dispatch("PAGEUP", gc)
             default:
        if gc.ActiveBuffer.InputMode {
             switch e.Code {
@@ -333,6 +389,7 @@ func handleEvent(a app.App, i interface{}) {
             switch e.Code {
             case key.CodeX:
                 if e.Modifiers >0 {
+                    dispatch("COPY-TO-CLIPBOARD", gc)
                     dispatch("EXCISE-SELECTION", gc)
                 }
                 
@@ -353,44 +410,35 @@ func handleEvent(a app.App, i interface{}) {
                 case 'L':
                     go startSshConn(1, "", "", "")
                 case 'N':
-                    gc.ActiveBufferId ++
-                    if gc.ActiveBufferId>len(gc.BufferList)-1 {
-                        gc.ActiveBufferId = 0
-                    }
-                    gc.ActiveBuffer = gc.BufferList[gc.ActiveBufferId]
-                    log.Printf("Next buffer: %v", gc.ActiveBufferId)
+                    dispatch("NEXT-BUFFER", gc)
                 case 'p':
-                    text, _ := clipboard.ReadAll()
-                    if gc.ActiveBuffer.Formatter.SelectEnd > 0 {
-                        dispatch("EXCISE-SELECTION", gc)
-                    }
-                    gc.ActiveBuffer.Data.Text = fmt.Sprintf("%s%s%s",gc.ActiveBuffer.Data.Text[:gc.ActiveBuffer.Formatter.Cursor], text,gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.Cursor:])
+                    dispatch("PASTE-FROM-CLIPBOARD", gc)
                 case 'y':
-                    clipboard.WriteAll(gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.SelectStart:gc.ActiveBuffer.Formatter.SelectEnd])
+                    dispatch("COPY-TO-CLIPBOARD", gc)
                 case '~':
-                    saveFile(gc.ActiveBuffer.Data.FileName, gc.ActiveBuffer.Data.Text)
+                    dispatch("SAVE-FILE", gc)
                 case 'i':
-                   gc.ActiveBuffer.InputMode = true
+                   dispatch("INPUT-MODE", gc)
                 case '0':
-                   gc.ActiveBuffer.Formatter.Cursor = SOL(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
+                   dispatch("START-OF-TEXT", gc)
                 case '^':
                    gc.ActiveBuffer.Formatter.Cursor = SOT(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
                 case '$':
-                   gc.ActiveBuffer.Formatter.Cursor = scanToEndOfLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
+                   dispatch("END-OF-LINE", gc)
                 case 'A':
-                   gc.ActiveBuffer.Formatter.Cursor = scanToEndOfLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
-                   gc.ActiveBuffer.InputMode = true
+                   dispatch("END-OF-LINE", gc)
+                   dispatch("INPUT-MODE", gc)
                 case 'a':
                    gc.ActiveBuffer.Formatter.Cursor++
-                   gc.ActiveBuffer.InputMode = true
+                   dispatch("INPUT-MODE", gc)
                 case 'k':
                     gc.ActiveBuffer.Formatter.Cursor = scanToPrevLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
                 case 'j':
                     gc.ActiveBuffer.Formatter.Cursor = scanToNextLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
                 case 'l':
-                   gc.ActiveBuffer.Formatter.Cursor++
+                   dispatch("NEXT-CHARACTER", gc)
                 case 'h':
-                   gc.ActiveBuffer.Formatter.Cursor--
+                   dispatch("PREVIOUS-CHARACTER", gc)
                 case 'T':
                     gc.ActiveBuffer.Formatter.TailBuffer = true
                 case 'W':
@@ -400,11 +448,7 @@ func handleEvent(a app.App, i interface{}) {
                         gc.ActiveBuffer.Formatter.Outline = true
                     }
                 case 'S':
-                    if gc.ActiveBuffer.Formatter.Vertical {
-                        gc.ActiveBuffer.Formatter.Vertical = false
-                    } else {
-                        gc.ActiveBuffer.Formatter.Vertical = true
-                    }
+                    dispatch("TOGGLE-VERTICAL-MODE", gc)
                 case '+':
                     dispatch("INCREASE-FONT", gc)
                 case '-':
