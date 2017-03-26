@@ -62,6 +62,7 @@ import (
 import "github.com/go-gl/mathgl/mgl32"
         import "golang.org/x/mobile/exp/sensor"
 
+var gc GlobalConfig
 var multiSample = uint(1)  //Make the internal pixel buffer larger to enable multisampling and eventually GL anti-aliasing
 var pixelTweakX =0
 var pixelTweakY =0
@@ -288,7 +289,7 @@ B Clear all caches
                     }
                 }
             case mouse.Event:
-                log.Printf("%v", e)
+                //log.Printf("%v", e)
                 //cursorX = int(e.X/2)
                 //cursorY = int(e.Y)
             case touch.Event:
@@ -482,6 +483,12 @@ func onPaint(glctx gl.Context, sz size.Event) {
         u8Pix[i] = 0
     }
     glim.RenderPara(gc.ActiveBuffer.Formatter, 0, 0, 0, 0, screenWidth, screenHeight, screenWidth, screenHeight, cursorX, cursorY, u8Pix, gc.ActiveBuffer.Data.Text, true, true, true)
+//FIXME - needs alpha to be full, but this is not the way to do it
+    for i := 3; i<len(u8Pix) ; i = i +4 {
+        if u8Pix[i] > 0 {
+            u8Pix[i] *=2
+        }
+    }
     glctx.Enable(gl.BLEND)
     glctx.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
     glctx.Enable( gl.DEPTH_TEST );
@@ -584,7 +591,6 @@ type Buffer struct {
     Formatter *glim.FormatParams
 }
 
-var gc GlobalConfig
 
 
 type vertexMeta struct {

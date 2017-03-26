@@ -229,6 +229,46 @@ func scrollToCursor(buf *Buffer){
     buf.Formatter.FirstDrawnCharPos = buf.Formatter.Cursor
 }
 
+func exciseSelection(buf *Buffer) {
+    log.Println("Clipping from ", buf.Formatter.SelectStart, " to ", buf.Formatter.SelectEnd)
+    buf.Data.Text = fmt.Sprintf("%s%s",
+        buf.Data.Text[:buf.Formatter.SelectStart],
+        buf.Data.Text[buf.Formatter.SelectEnd+1:])
+    buf.Formatter.SelectStart = 0
+    buf.Formatter.SelectEnd = 0
+}
+
+func reduceFont(buf *Buffer) {
+  buf.Formatter.FontSize -= 1
+  glim.ClearAllCaches()
+
+}
+
+func increaseFont(buf *Buffer) {
+  buf.Formatter.FontSize += 1
+  glim.ClearAllCaches()
+}
+
+func doPageDown(buf *Buffer) {
+    pageDown(gc.ActiveBuffer)
+}
+
+func dispatch (command string, gc GlobalConfig) {
+
+    switch command {
+        case "EXCISE-SELECTION":
+            exciseSelection(gc.ActiveBuffer)
+        case "REDUCE-FONT":
+            reduceFont(gc.ActiveBuffer)
+        case "INCREASE-FONT":
+            increaseFont(gc.ActiveBuffer)
+        case "PAGEDOWN":
+            doPageDown(gc.ActiveBuffer)
+        case "SEEK-EOL":
+            gc.ActiveBuffer.Formatter.Cursor = scanToEndOfLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
+    }
+}
+
 
 func pageUp(buf *Buffer, w,h int) {
     log.Println("Page up")
@@ -252,7 +292,7 @@ func handleEvent(a app.App, i interface{}) {
             case key.CodeHome:
                 gc.ActiveBuffer.Formatter.Cursor = SOL(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
             case key.CodeEnd:
-                   gc.ActiveBuffer.Formatter.Cursor = scanToEndOfLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
+                   dispatch("SEEK-EOL", gc)
             case key.CodeLeftArrow:
                 gc.ActiveBuffer.Formatter.Cursor = gc.ActiveBuffer.Formatter.Cursor-1
             case key.CodeRightArrow:
@@ -262,8 +302,7 @@ func handleEvent(a app.App, i interface{}) {
             case key.CodeDownArrow:
                 gc.ActiveBuffer.Formatter.Cursor = scanToNextLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
             case key.CodePageDown:
-                    //page down
-                    pageDown(gc.ActiveBuffer)
+                dispatch("PAGEDOWN", gc)
             case key.CodePageUp:
                     //gc.ActiveBuffer.Line = gc.ActiveBuffer.Line -24
                     //if gc.ActiveBuffer.Line < 0 { gc.ActiveBuffer.Line = 0 }
@@ -282,6 +321,9 @@ func handleEvent(a app.App, i interface{}) {
                     case '`':
                         gc.ActiveBuffer.InputMode = false
                     default:
+                        if gc.ActiveBuffer.Formatter.SelectEnd > 0 {
+                            dispatch("EXCISE-SELECTION", gc)
+                        }
                         gc.ActiveBuffer.Data.Text = fmt.Sprintf("%s%s%s",gc.ActiveBuffer.Data.Text[:gc.ActiveBuffer.Formatter.Cursor], string(e.Rune),gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.Cursor:])
                         gc.ActiveBuffer.Formatter.Cursor++
                 }
@@ -289,7 +331,16 @@ func handleEvent(a app.App, i interface{}) {
             }
         } else {
             switch e.Code {
+            case key.CodeX:
+                if e.Modifiers >0 {
+                    dispatch("EXCISE-SELECTION", gc)
+                }
+                
             case key.CodeA:
+                if e.Modifiers >0 {
+                    gc.ActiveBuffer.Formatter.SelectStart = 0
+                    gc.ActiveBuffer.Formatter.SelectEnd = len(gc.ActiveBuffer.Data.Text)
+                }
                 gc.ActiveBuffer.Formatter.Cursor = gc.ActiveBuffer.Formatter.Cursor-1
             case key.CodeD:
                 gc.ActiveBuffer.Formatter.Cursor = gc.ActiveBuffer.Formatter.Cursor+1
@@ -310,6 +361,9 @@ func handleEvent(a app.App, i interface{}) {
                     log.Printf("Next buffer: %v", gc.ActiveBufferId)
                 case 'p':
                     text, _ := clipboard.ReadAll()
+                    if gc.ActiveBuffer.Formatter.SelectEnd > 0 {
+                        dispatch("EXCISE-SELECTION", gc)
+                    }
                     gc.ActiveBuffer.Data.Text = fmt.Sprintf("%s%s%s",gc.ActiveBuffer.Data.Text[:gc.ActiveBuffer.Formatter.Cursor], text,gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.Cursor:])
                 case 'y':
                     clipboard.WriteAll(gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.SelectStart:gc.ActiveBuffer.Formatter.SelectEnd])
@@ -352,11 +406,9 @@ func handleEvent(a app.App, i interface{}) {
                         gc.ActiveBuffer.Formatter.Vertical = true
                     }
                 case '+':
-                  gc.ActiveBuffer.Formatter.FontSize += 1
-                  glim.ClearAllCaches()
+                    dispatch("INCREASE-FONT", gc)
                 case '-':
-                  gc.ActiveBuffer.Formatter.FontSize -= 1
-                  glim.ClearAllCaches()
+                    dispatch("REDUCE-FONT", gc)
                 case 'B':
                   glim.ClearAllCaches()
                   Log2Buff("Caches cleared")

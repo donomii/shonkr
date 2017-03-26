@@ -1,1 +1,13 @@
 *.exe
+
+main
+
+shonk
+
+testjap.txt
+
+testmmap.go
+
+fonts*
+
+*ttf
