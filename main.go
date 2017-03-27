@@ -312,7 +312,7 @@ B Clear all caches
                     cPos, _, _ := glim.RenderPara(gc.ActiveBuffer.Formatter, 0, 0, 0, 0, screenWidth, screenHeight, screenWidth, screenHeight, cursorX, cursorY, u8Pix, gc.ActiveBuffer.Data.Text, false,false,false)
                     gc.ActiveBuffer.Formatter.SelectEnd = cPos
                 }
-                fmt.Println(gc.ActiveBuffer.Formatter.SelectEnd)
+                //fmt.Println(gc.ActiveBuffer.Formatter.SelectEnd)
             }
         }
     })
