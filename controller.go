@@ -264,10 +264,6 @@ func doPageDown(buf *Buffer) {
     pageDown(gc.ActiveBuffer)
 }
 
-<<<<<<< HEAD
-func dispatch (command string, gc GlobalConfig) {
-
-=======
 func previousCharacter(buf *Buffer) {
     buf.Formatter.Cursor = buf.Formatter.Cursor-1
 }
@@ -311,12 +307,8 @@ func dispatch (command string, gc GlobalConfig) {
             increaseFont(gc.ActiveBuffer)
         case "PAGEDOWN":
             doPageDown(gc.ActiveBuffer)
-        case "SEEK-EOL":
-            gc.ActiveBuffer.Formatter.Cursor = scanToEndOfLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
         case "PAGEUP":
             pageUp(gc.ActiveBuffer, screenWidth, screenHeight)
-        case "SEEK-EOL":
-            gc.ActiveBuffer.Formatter.Cursor = scanToEndOfLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
         case "PREVIOUS-CHARACTER":
             previousCharacter(gc.ActiveBuffer)
         case "NEXT-CHARACTER":
@@ -343,6 +335,8 @@ func dispatch (command string, gc GlobalConfig) {
             clipboard.WriteAll(gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.SelectStart:gc.ActiveBuffer.Formatter.SelectEnd+1])
         case "SAVE-FILE":
             saveFile(gc.ActiveBuffer.Data.FileName, gc.ActiveBuffer.Data.Text)
+        case "SEEK-EOL":
+           gc.ActiveBuffer.Formatter.Cursor = scanToEndOfLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
         case "END-OF-LINE":
            gc.ActiveBuffer.Formatter.Cursor = scanToEndOfLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
         case "TAIL":
