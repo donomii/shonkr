@@ -299,6 +299,10 @@ if gc.ActiveBuffer.Formatter.Cursor < 0 {
 
 func dispatch (command string, gc GlobalConfig) {
     switch command {
+		case "WHEEL-UP":
+		gc.ActiveBuffer.Formatter.Cursor = scanToPrevLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
+		case "WHEEL-DOWN":
+		gc.ActiveBuffer.Formatter.Cursor = scanToNextLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
         case "EXCISE-SELECTION":
             exciseSelection(gc.ActiveBuffer)
         case "REDUCE-FONT":
