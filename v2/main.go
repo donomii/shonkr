@@ -42,9 +42,12 @@ func updatefn(w *nucular.Window) {
 	nh := 500
 	buff := make([]byte, nw*nh*4)
 	
-    RenderPara(f , 10, 15, 0, 0, nw, nh, nw, nh, 1, 1, buff, "The quick brown fox jumped over the lazy dog", true, true , false)
+    glim.RenderPara(f , 10, 15, 0, 0, nw, nh, nw, nh, 1, 1, buff, "The quick brown fox jumped over the lazy dog", true, true , false)
+	buff2 := glim.Rotate270(nw, nh, buff)
+	nw, nh = nh, nw
 	//glim.DumpBuff(buff,uint(nw),uint(nh))
-	tt :=  glim.ImageToGFormatRGBA(nw,nh, glim.FlipUp(nw,nh,buff))
+	buff2 = glim.FlipUp(nw,nh,buff2)
+	tt :=  glim.ImageToGFormatRGBA(nw,nh, buff2)
 	w.Cmds().DrawImage(rect.Rect{0, 0, nw, nh}, tt)
 }
 
