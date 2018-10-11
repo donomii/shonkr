@@ -4,7 +4,10 @@ import (
 	"github.com/donomii/glim"
 	"github.com/donomii/nucular/rect"
 	"log"
-
+    "bufio"
+    "os"
+    "fmt"
+    "encoding/json"
 	//"image"
 	"github.com/donomii/nucular"
 	"image/color"
@@ -16,11 +19,12 @@ win.Cmds().DrawImage(rect.Rect{50, 100, 200, 200}, img)
 }
 
 var demoText = ""
+var tokens [][]string
 func updatefn(w *nucular.Window) {
-	col := color.RGBA{255, 255, 255, 255}
+	
 	txtSize := 9.6
 	if w.Input().Mouse.Buttons[1].Down {
-		col = color.RGBA{255, 0, 0, 0}
+		//col = color.RGBA{255, 0, 0, 0}
 		txtSize = 30
 	}
 	/*
@@ -32,6 +36,8 @@ func updatefn(w *nucular.Window) {
 		log.Println(w.Input().Keyboard.Text)
 		demoText = demoText + w.Input().Keyboard.Text
 	}
+	/*
+	col := color.RGBA{255, 255, 255, 255}
 	w.Row(30).Dynamic(1)
 	w.Label("Dynamic fixed column layout with generated position and size (LayoutRowDynamic):", "LC")
 	w.Row(30).Dynamic(1)
@@ -47,29 +53,50 @@ func updatefn(w *nucular.Window) {
 	img5 := img4
 	w.Image(img5)
 	w.Cmds().DrawImage(rect.Rect{50, 100, 200, 200}, img5)
+	*/
 	f := glim.NewFormatter()
+	f.Colour = &color.RGBA{255,255,255,255}
 	f.FontSize = txtSize
-	nw := 800
-	nh := 500
+	nw := 1200
+	nh := 800
 	buff := make([]byte, nw*nh*4)
 	
-    glim.RenderPara(f , 10, 15, 0, 0, nw, nh, nw, nh, 1, 1, buff, demoText, true, true , false)
-	buff2 := glim.Rotate270(nw, nh, buff)
-	nw, nh = nh, nw
+    glim.RenderTokenPara(f , 0,0, 10,10, nw, nh, nw, nh, 1, 1, buff, tokens, true, true , false)
+	//buff2 := glim.Rotate270(nw, nh, buff)
+	//nw, nh = nh, nw
 	//glim.DumpBuff(buff,uint(nw),uint(nh))
-	buff2 = glim.FlipUp(nw,nh,buff2)
-	tt :=  glim.ImageToGFormatRGBA(nw,nh, buff2)
+	buff = glim.FlipUp(nw,nh,buff)
+	tt :=  glim.ImageToGFormatRGBA(nw,nh, buff)
 	w.Cmds().DrawImage(rect.Rect{0, 0, nw, nh}, tt)
 	log.Printf("%+v", w.Input())
 
 }
 
 func main() {
+ tokens = parseStdin()
+ fmt.Printf("%+v\n", tokens)
+ demoText = tokens[0][1]
 wnd := nucular.NewMasterWindow(0, "MyWindow", updatefn)
 //var theme nstyle.Theme = nstyle.DarkTheme
 //const scaling = 1.8
 //wnd.SetStyle(nstyle.FromTheme(theme, scaling))
 wnd.Main()
+}
+
+func parseStdin() [][]string{
+    scanner := bufio.NewScanner(os.Stdin)
+    all := [][]string{}
+    for scanner.Scan() {
+        vals := make([]string, 0)
+        line := scanner.Text()
+        json.Unmarshal([]byte(line), &vals)
+        all = append(all, vals)
+    }
+
+    if scanner.Err() != nil {
+        // handle error.
+    }
+    return all
 }
 
 
