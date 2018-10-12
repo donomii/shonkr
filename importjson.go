@@ -4,7 +4,9 @@ package main
 //run with
 //
 //cat main.go | pygmentize -f raw | perl -MJSON -ne '@a=split(/\s+/, $_,2);$a[1]=~ s/^u.//;chop $a[1];chop $a[1];print encode_json(\@a)."\n"' | go run importjson.go
-
+//
+//windows
+//type main.go | pygmentize -f raw |perl -MJSON -ne "@a=split(/\s+/, $_,2);$a[1]=~ s/^(.)//;chop $a[1];chop $a[1];print encode_json(\@a).\"\n\""
 import (
     "bufio"
     "os"
