@@ -15,3 +15,7 @@ testmmap.go
 fonts*
 
 *ttf
+
+.idea
+
+*.iml
