@@ -59,7 +59,7 @@ func updatefn(w *nucular.Window) {
 		w.Cmds().DrawImage(rect.Rect{50, 100, 200, 200}, img5)
 	*/
 	f := glim.NewFormatter()
-	f.Colour = &color.RGBA{255, 255, 255, 255}
+	f.Colour = &glim.RGBA{255, 255, 255, 255}
 	f.FontSize = txtSize
 	nw := 1200
 	nh := 800
