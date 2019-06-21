@@ -1,0 +1,67 @@
+
+Command:
+Command:
+ &ls
+ &lslR
+ git
+  status
+   --porcelain
+  push
+  pull
+   --rebase
+  commit
+   &lslR
+   .
+  rebase
+  merge
+  stash
+   apply
+  diff
+   --summary
+  reset
+   --hard
+  branch
+   -a
+  show
+   !git branch -a
+  add
+   &lslR
+  log
+   shortlog
+   -p
+   --oneline
+    --decorate
+     --graph
+      --simplify-by-decoration
+   --stat
+   --graph
+  submodule
+   init
+   update
+    --init
+     --recursive
+   sync
+ imapcli
+  status
+  list
+  read
+   1
+   2
+   3
+   4
+   5
+ !set
+&{keyboard:{keys:[{down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0}] text:[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] text_len:0} mouse:{buttons:[{down:1 clicked:1 clicked_pos:{x:585 y:147}} {down:0 clicked:0 clicked_pos:{x:0 y:0}} {down:0 clicked:0 clicked_pos:{x:0 y:0}} {down:0 clicked:0 clicked_pos:{x:0 y:0}}] pos:{x:585 y:147} prev:{x:585 y:147} delta:{x:0 y:0} scroll_delta:{x:0 y:0} grab:0 grabbed:0 ungrab:0 _:[0]}}
+&{keyboard:{keys:[{down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0}] text:[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] text_len:0} mouse:{buttons:[{down:0 clicked:1 clicked_pos:{x:585 y:147}} {down:0 clicked:0 clicked_pos:{x:0 y:0}} {down:0 clicked:0 clicked_pos:{x:0 y:0}} {down:0 clicked:0 clicked_pos:{x:0 y:0}}] pos:{x:585 y:147} prev:{x:585 y:147} delta:{x:0 y:0} scroll_delta:{x:0 y:0} grab:0 grabbed:0 ungrab:0 _:[0]}}
+&{keyboard:{keys:[{down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0}] text:[122 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] text_len:1} mouse:{buttons:[{down:0 clicked:0 clicked_pos:{x:585 y:147}} {down:0 clicked:0 clicked_pos:{x:0 y:0}} {down:0 clicked:0 clicked_pos:{x:0 y:0}} {down:0 clicked:0 clicked_pos:{x:0 y:0}}] pos:{x:585 y:147} prev:{x:585 y:147} delta:{x:0 y:0} scroll_delta:{x:0 y:0} grab:0 grabbed:0 ungrab:0 _:[0]}}
+Inserting at 27, length 28
+&{keyboard:{keys:[{down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0}] text:[122 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] text_len:1} mouse:{buttons:[{down:0 clicked:0 clicked_pos:{x:585 y:147}} {down:0 clicked:0 clicked_pos:{x:0 y:0}} {down:0 clicked:0 clicked_pos:{x:0 y:0}} {down:0 clicked:0 clicked_pos:{x:0 y:0}}] pos:{x:585 y:147} prev:{x:585 y:147} delta:{x:0 y:0} scroll_delta:{x:0 y:0} grab:0 grabbed:0 ungrab:0 _:[0]}}
+Inserting at 28, length 29
+&{keyboard:{keys:[{down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0}] text:[122 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] text_len:1} mouse:{buttons:[{down:0 clicked:0 clicked_pos:{x:585 y:147}} {down:0 clicked:0 clicked_pos:{x:0 y:0}} {down:0 clicked:0 clicked_pos:{x:0 y:0}} {down:0 clicked:0 clicked_pos:{x:0 y:0}}] pos:{x:585 y:147} prev:{x:585 y:147} delta:{x:0 y:0} scroll_delta:{x:0 y:0} grab:0 grabbed:0 ungrab:0 _:[0]}}
+Inserting at 29, length 30
+&{keyboard:{keys:[{down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0}] text:[122 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] text_len:1} mouse:{buttons:[{down:0 clicked:0 clicked_pos:{x:585 y:147}} {down:0 clicked:0 clicked_pos:{x:0 y:0}} {down:0 clicked:0 clicked_pos:{x:0 y:0}} {down:0 clicked:0 clicked_pos:{x:0 y:0}}] pos:{x:585 y:147} prev:{x:585 y:147} delta:{x:0 y:0} scroll_delta:{x:0 y:0} grab:0 grabbed:0 ungrab:0 _:[0]}}
+Inserting at 30, length 31
+&{keyboard:{keys:[{down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0}] text:[122 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] text_len:1} mouse:{buttons:[{down:0 clicked:0 clicked_pos:{x:585 y:147}} {down:0 clicked:0 clicked_pos:{x:0 y:0}} {down:0 clicked:0 clicked_pos:{x:0 y:0}} {down:0 clicked:0 clicked_pos:{x:0 y:0}}] pos:{x:585 y:147} prev:{x:585 y:147} delta:{x:0 y:0} scroll_delta:{x:0 y:0} grab:0 grabbed:0 ungrab:0 _:[0]}}
+Inserting at 31, length 32
+&{keyboard:{keys:[{down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0}] text:[122 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] text_len:0} mouse:{buttons:[{down:1 clicked:1 clicked_pos:{x:216 y:52}} {down:0 clicked:0 clicked_pos:{x:0 y:0}} {down:0 clicked:0 clicked_pos:{x:0 y:0}} {down:0 clicked:0 clicked_pos:{x:0 y:0}}] pos:{x:216 y:52} prev:{x:216 y:52} delta:{x:0 y:0} scroll_delta:{x:0 y:0} grab:0 grabbed:0 ungrab:0 _:[0]}}
+&{keyboard:{keys:[{down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0} {down:0 clicked:0}] text:[122 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] text_len:0} mouse:{buttons:[{down:0 clicked:1 clicked_pos:{x:216 y:52}} {down:0 clicked:0 clicked_pos:{x:0 y:0}} {down:0 clicked:0 clicked_pos:{x:0 y:0}} {down:0 clicked:0 clicked_pos:{x:0 y:0}}] pos:{x:216 y:52} prev:{x:216 y:52} delta:{x:0 y:0} scroll_delta:{x:0 y:0} grab:0 grabbed:0 ungrab:0 _:[0]}}
