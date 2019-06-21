@@ -29,6 +29,7 @@ import (
 
 var DirFiles []string
 var mapTex *nktemplates.Texture
+var mapTex1 *nktemplates.Texture
 var lastEnterDown bool
 var lastBackspaceDown bool
 
@@ -146,7 +147,9 @@ func drawmenu(ctx *nk.Context, state *State) {
 		if nk.NkMenuItemLabel(ctx, "---------------", nk.TextLeft) > 0 {
 		}
 
+        fmt.Printf("Bufferlist %+v\n", ed.BufferList)
 		for i, v := range ed.BufferList {
+            fmt.Printf("Bufferlist %+v\n", v.Data)
 			if nk.NkMenuItemLabel(ctx, fmt.Sprintf("%v) %v", i, v.Data.FileName), nk.TextLeft) > 0 {
 				ed.ActiveBuffer = ed.BufferList[i]
 			}
@@ -378,8 +381,8 @@ func QuickFileEditor(ctx *nk.Context) {
 		nk.NkLayoutRowDynamic(ctx, 20, 1)
 		{
 
-			for i, vv := range DirFiles {
-                fmt.Println("File ",i, ":", vv)
+			for _, vv := range DirFiles {
+                //fmt.Println("File ",i, ":", vv)
 				if nk.NkButtonLabel(ctx, vv) > 0 {
                     fmt.Println("Loading file ", vv)
 					LoadFileIfNotLoaded(ed, vv)
@@ -392,8 +395,14 @@ func QuickFileEditor(ctx *nk.Context) {
 			}
 		}
 
+        w :=200
+        h := 200
+        p1 := make([]uint8, w*h*4)
         //Want to display status bar here
-        //doImage(ctx, pic, width, height)
+        fmt.Printf("Bufferlist %+v\n", ed.BufferList)
+        buff := ed.StatusBuffer
+        glim.RenderPara(buff.Formatter, 0, 0, 0, 0, w, h, w, h, 0, 0, p1, buff.Data.Text, true, true, true)
+        doImage(ctx, p1, w, h)
 		nk.NkGroupEnd(ctx)
 
 		nk.NkGroupBegin(ctx, "Group 2", nk.WindowBorder)
@@ -498,10 +507,10 @@ func QuickFileEditor(ctx *nk.Context) {
 func doImage(ctx  *nk.Context, pic []uint8, width, nuHeight int) {
 		nk.NkLayoutRowDynamic(ctx, float32(nuHeight), 1)
 		{
-		mapTex, _ = nktemplates.RawTexture(glim.Uint8ToBytes(pic), int32(width), int32(nuHeight), mapTex)
+            mapTex1, _ = nktemplates.RawTexture(glim.Uint8ToBytes(pic), int32(width), int32(nuHeight), mapTex1)
 				var err error = nil
 				if err == nil {
-					testim := nk.NkImageId(int32(mapTex.Handle))
+					testim := nk.NkImageId(int32(mapTex1.Handle))
 					nk.NkImage(ctx, testim)
                 }
             }

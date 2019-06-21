@@ -44,12 +44,12 @@ type Buffer struct {
 var fname string
 
 func NewBuffer() *Buffer {
-	buf := &Buffer{}
+	buf := Buffer{}
 	buf.Data = &BufferData{}
 	buf.Formatter = glim.NewFormatter()
 	buf.Data.Text = ""
 	buf.Data.FileName = ""
-	return buf
+	return &buf
 }
 
 //Create a new buffer, make it active and set its contents.  file name is required for a unique key to index it
@@ -86,7 +86,7 @@ func NewEditor() *GlobalConfig {
 	gc.StatusBuffer.Formatter = glim.NewFormatter()
 	gc.StatusBuffer.Data.Text = `Status window`
 	gc.StatusBuffer.Data.FileName = "Status"
-	gc.BufferList = []*Buffer{gc.ActiveBuffer, gc.StatusBuffer}
+	gc.BufferList = []*Buffer{ NewBuffer(),  gc.ActiveBuffer, gc.StatusBuffer, NewBuffer()}
 	return &gc
 
 }
@@ -244,8 +244,7 @@ func LoadFileIfNotLoaded(gc *GlobalConfig, fileName string) {
 		gc.ActiveBuffer.Formatter.Cursor = len(gc.ActiveBuffer.Data.Text)
 	} else {
 		fmt.Printf("Reusing buffer for %v\n", fileName)
-		buff = fbuff
-		gc.ActiveBuffer = buff
+		gc.ActiveBuffer = fbuff
 	}
 
 }
