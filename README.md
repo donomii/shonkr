@@ -22,4 +22,6 @@ There is currently a test framework in the v3 directory that is capable of loadi
 
 # Use
 
-./v3 test.txt
+    ./v3
+
+V3 will display a list of files in the current directory, you can click on them to edit.  Changes will be automatically saved when you open a new file.
