@@ -15,7 +15,6 @@ import (
 	"github.com/go-gl/glfw/v3.2/glfw"
 	"github.com/golang-ui/nuklear/nk"
 
-
 	//"text/scanner"
 
 	"fmt"
@@ -147,9 +146,9 @@ func drawmenu(ctx *nk.Context, state *State) {
 		if nk.NkMenuItemLabel(ctx, "---------------", nk.TextLeft) > 0 {
 		}
 
-        fmt.Printf("Bufferlist %+v\n", ed.BufferList)
+		//fmt.Printf("Bufferlist %+v\n", ed.BufferList)
 		for i, v := range ed.BufferList {
-            fmt.Printf("Bufferlist %+v\n", v.Data)
+			//fmt.Printf("Bufferlist %+v\n", v.Data)
 			if nk.NkMenuItemLabel(ctx, fmt.Sprintf("%v) %v", i, v.Data.FileName), nk.TextLeft) > 0 {
 				ed.ActiveBuffer = ed.BufferList[i]
 			}
@@ -167,7 +166,7 @@ func drawmenu(ctx *nk.Context, state *State) {
 }
 
 func gfxMain(win *glfw.Window, ctx *nk.Context, state *State) {
-    appName := "Shonkr"
+	appName := "Shonkr"
 
 	maxVertexBuffer := 512 * 1024
 	maxElementBuffer := 128 * 1024
@@ -178,19 +177,15 @@ func gfxMain(win *glfw.Window, ctx *nk.Context, state *State) {
 	bounds := nk.NkRect(50, 50, 230, 250)
 	update := nk.NkBegin(ctx, appName, bounds, nk.WindowBorder|nk.WindowMovable|nk.WindowScalable|nk.WindowMinimizable|nk.WindowTitle)
 
-
-
 	col := nk.NewColor()
 	col.SetRGBA(nk.Byte(255), nk.Byte(255), nk.Byte(255), nk.Byte(255))
-    wbd := ctx.Style().Window().GetFixedBackground().GetData()
-    wbd[0]=255
-    wbd[1]=255
-    wbd[2]=255
-    wbd[3]=255
-    wbg := ctx.Style().GetButton().GetTextBackground()
-    wbg.SetRGBAi(255,255,255,255)
-
-
+	wbd := ctx.Style().Window().GetFixedBackground().GetData()
+	wbd[0] = 255
+	wbd[1] = 255
+	wbd[2] = 255
+	wbd[3] = 255
+	wbg := ctx.Style().GetButton().GetTextBackground()
+	wbg.SetRGBAi(255, 255, 255, 255)
 
 	nk.NkWindowSetPosition(ctx, appName, nk.NkVec2(0, 0))
 	nk.NkWindowSetSize(ctx, appName, nk.NkVec2(float32(winWidth), float32(winHeight)))
@@ -213,6 +208,22 @@ func gfxMain(win *glfw.Window, ctx *nk.Context, state *State) {
 		lastBackspaceDown = true
 	} else {
 		lastBackspaceDown = false
+	}
+
+	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyLeft) > 0 {
+		dispatch("PREVIOUS-CHARACTER", ed)
+	}
+
+	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyRight) > 0 {
+		dispatch("NEXT-CHARACTER", ed)
+	}
+
+	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyDown) > 0 {
+		dispatch("NEXT-LINE", ed)
+	}
+
+	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyUp) > 0 {
+		dispatch("PREVIOUS-LINE", ed)
 	}
 
 	if update > 0 {
@@ -299,7 +310,7 @@ func ButtonBox(ctx *nk.Context) {
 					if !strings.HasPrefix(command, "!") && !strings.HasPrefix(command, "&") {
 						currentThing = append(currentThing, v)
 						currentNode = v
-					} 
+					}
 				}
 			}
 
@@ -382,9 +393,9 @@ func QuickFileEditor(ctx *nk.Context) {
 		{
 
 			for _, vv := range DirFiles {
-                //fmt.Println("File ",i, ":", vv)
+				//fmt.Println("File ",i, ":", vv)
 				if nk.NkButtonLabel(ctx, vv) > 0 {
-                    fmt.Println("Loading file ", vv)
+					fmt.Println("Loading file ", vv)
 					LoadFileIfNotLoaded(ed, vv)
 					//var err error
 					//EditBytes, err = ioutil.ReadFile(vv)
@@ -395,14 +406,14 @@ func QuickFileEditor(ctx *nk.Context) {
 			}
 		}
 
-        w :=200
-        h := 200
-        p1 := make([]uint8, w*h*4)
-        //Want to display status bar here
-        fmt.Printf("Bufferlist %+v\n", ed.BufferList)
-        buff := ed.StatusBuffer
-        glim.RenderPara(buff.Formatter, 0, 0, 0, 0, w, h, w, h, 0, 0, p1, buff.Data.Text, true, true, true)
-        doImage(ctx, p1, w, h)
+		w := 200
+		h := 200
+		p1 := make([]uint8, w*h*4)
+		//Want to display status bar here
+		//fmt.Printf("Bufferlist %+v\n", ed.BufferList)
+		buff := ed.StatusBuffer
+		glim.RenderPara(buff.Formatter, 0, 0, 0, 0, w, h, w, h, 0, 0, p1, buff.Data.Text, true, true, true)
+		doImage(ctx, p1, w, h)
 		nk.NkGroupEnd(ctx)
 
 		nk.NkGroupBegin(ctx, "Group 2", nk.WindowBorder)
@@ -418,7 +429,10 @@ func QuickFileEditor(ctx *nk.Context) {
 		l = keys.GetTextLen()
 		ll := *l
 		if ll > 0 {
-			fmt.Printf("%+v\n", ctx.Input())
+			if *(ctx.Input().GetKeyboard().GetTextLen()) > 0 {
+				fmt.Printf("%+v\n", ctx.Input())
+				fmt.Printf("%+s\n", ctx.Input().GetKeyboard().GetText())
+			}
 			s := fmt.Sprintf("\"%vu%04x\"", `\`, int(text[0]))
 			s2, _ := strconv.Unquote(s)
 			/*log.Println(err)
@@ -445,10 +459,10 @@ func QuickFileEditor(ctx *nk.Context) {
 				log.Println("Click at ", mouseX, mouseY)
 			}
 		}
-				bounds := nk.NkWidgetBounds(ctx)
-				left := int(*bounds.GetX())
-				top := int(*bounds.GetY())
-        nuHeight := height-top
+		bounds := nk.NkWidgetBounds(ctx)
+		left := int(*bounds.GetX())
+		top := int(*bounds.GetY())
+		nuHeight := height - top
 		nk.NkLayoutRowDynamic(ctx, float32(nuHeight), 1)
 		{
 			//if EditBytes != nil {
@@ -465,7 +479,11 @@ func QuickFileEditor(ctx *nk.Context) {
 				form.Colour = &glim.RGBA{255, 255, 255, 255}
 				//form.Cursor = 20
 				form.FontSize = 12
-				newCursor, _, _ := glim.RenderPara(ed.ActiveBuffer.Formatter, 0, 0, 0, 0, width, nuHeight, width, nuHeight, int(mouseX)-left, int(mouseY)-top, pic, ed.ActiveBuffer.Data.Text, true, true, true)
+				newCursor, _, _ := glim.RenderPara(ed.ActiveBuffer.Formatter,
+					0, 0, 0, 0,
+					width, nuHeight, width, nuHeight,
+					int(mouseX)-left, int(mouseY)-top, pic, ed.ActiveBuffer.Data.Text,
+					true, true, true)
 				for _, v := range butts {
 					if *v.GetClicked() > 0 {
 						form.Cursor = newCursor
@@ -477,7 +495,8 @@ func QuickFileEditor(ctx *nk.Context) {
 				//gl.DeleteTextures(testim)
 				//t, err := nktemplates.LoadImageFile(fmt.Sprintf("%v/progress%05v.png", output, fnum), width, height)
 				//t := nktemplates.LoadImageData(globalPic, width, height)
-				mapTex, _ = nktemplates.RawTexture(glim.Uint8ToBytes(pic), int32(width), int32(nuHeight), mapTex)
+				mapTex, _ = nktemplates.RawTexture(glim.Uint8ToBytes(pic),
+					int32(width), int32(nuHeight), mapTex)
 				var err error = nil
 				if err == nil {
 					testim := nk.NkImageId(int32(mapTex.Handle))
@@ -503,15 +522,14 @@ func QuickFileEditor(ctx *nk.Context) {
 
 }
 
-
-func doImage(ctx  *nk.Context, pic []uint8, width, nuHeight int) {
-		nk.NkLayoutRowDynamic(ctx, float32(nuHeight), 1)
-		{
-            mapTex1, _ = nktemplates.RawTexture(glim.Uint8ToBytes(pic), int32(width), int32(nuHeight), mapTex1)
-				var err error = nil
-				if err == nil {
-					testim := nk.NkImageId(int32(mapTex1.Handle))
-					nk.NkImage(ctx, testim)
-                }
-            }
-        }
+func doImage(ctx *nk.Context, pic []uint8, width, nuHeight int) {
+	nk.NkLayoutRowDynamic(ctx, float32(nuHeight), 1)
+	{
+		mapTex1, _ = nktemplates.RawTexture(glim.Uint8ToBytes(pic), int32(width), int32(nuHeight), mapTex1)
+		var err error = nil
+		if err == nil {
+			testim := nk.NkImageId(int32(mapTex1.Handle))
+			nk.NkImage(ctx, testim)
+		}
+	}
+}
