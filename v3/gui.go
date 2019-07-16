@@ -1,6 +1,5 @@
 // gui.go
 package main
-
 import (
 	"strings"
 

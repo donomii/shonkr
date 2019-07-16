@@ -1,5 +1,10 @@
 package main
 
+// #cgo CFLAGS: -g -Wall
+// #include <stdlib.h>
+// #include "tmt.h"
+import "C"
+
 import (
     //"os"
 
@@ -164,9 +169,29 @@ var ed *GlobalConfig
 var config UserConfig
 var confFile string
 
+
+
 func main() {
 	runtime.LockOSThread()
 	runtime.GOMAXPROCS(1)
+    vt := C.terminal_open()
+    C.tmt_resize(vt, 3, 80)
+    C.tmt_write(vt, C.CString("\033[1mhello, world (in bold!)\033[0m\n"), 0);
+    C.tmt_write(vt, C.CString("Force scroll\n"), 0);
+    scr := C.tmt_screen(vt)
+    fmt.Printf("lines: %v, columns: %v\n", scr.nline, scr.ncol)
+    for i:=0; i<int(scr.nline);i++ {
+    for j:=0; j<int(scr.ncol);j++ {
+        fmt.Printf("%c", rune(C.terminal_char(vt, C.int(j), C.int(i))))
+    }
+    fmt.Println("")
+}
+    //chars := "abcdefgh"
+
+
+
+
+
 	confFile = goof.ConfigFilePath(".shonkr.json")
 	log.Println("Loading config from:", confFile)
 	configBytes, conferr := ioutil.ReadFile(confFile)
