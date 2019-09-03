@@ -258,9 +258,14 @@ func ActiveBufferAppend(gc *GlobalConfig, txt string) {
 }
 
 func ActiveBufferInsert(gc *GlobalConfig, txt string) {
-	fmt.Printf("Inserting at %v, length %v\n", gc.ActiveBuffer.Formatter.Cursor, len(gc.ActiveBuffer.Data.Text))
+	if gc.ActiveBuffer.Formatter.Cursor < 0 {
+		gc.ActiveBuffer.Formatter.Cursor = 0
+	}
+	log.Printf("Inserting at %v, length %v\n", gc.ActiveBuffer.Formatter.Cursor, len(gc.ActiveBuffer.Data.Text))
 	gc.ActiveBuffer.Data.Text = fmt.Sprintf("%s%s%s", gc.ActiveBuffer.Data.Text[:ed.ActiveBuffer.Formatter.Cursor], txt, gc.ActiveBuffer.Data.Text[ed.ActiveBuffer.Formatter.Cursor:])
 	gc.ActiveBuffer.Formatter.Cursor = gc.ActiveBuffer.Formatter.Cursor + len(txt)
+	gc.ActiveBuffer.Formatter.Cursor = len(gc.ActiveBuffer.Data.Text)
+
 }
 
 func SSHAgent() ssh.AuthMethod {
@@ -394,7 +399,21 @@ func ToggleVerticalMode(gc *GlobalConfig) {
 	}
 }
 
-func PasteFromClipBoard(gc *GlobalConfig, buf *Buffer) {
+func ClearBuffer(buff *Buffer) {
+	buff.Data.Text = ""
+	buff.Formatter.Cursor = 0
+}
+
+func ClearActiveBuffer(gc *GlobalConfig) {
+	ClearBuffer(gc.ActiveBuffer)
+}
+
+func SetBuffer(buff *Buffer, text string) {
+	buff.Data.Text = text
+	buff.Formatter.Cursor = 0
+}
+
+func PasteFromClipBoard(gc *GlobalConfig) {
 	text, _ := clipboard.ReadAll()
 	dispatch("EXCISE-SELECTION", gc)
 
@@ -402,7 +421,7 @@ func PasteFromClipBoard(gc *GlobalConfig, buf *Buffer) {
 		gc.ActiveBuffer.Formatter.Cursor = 0
 	}
 
-	gc.ActiveBuffer.Data.Text = fmt.Sprintf("%s%s%s", gc.ActiveBuffer.Data.Text[:gc.ActiveBuffer.Formatter.Cursor], text, gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.Cursor:])
+	ActiveBufferInsert(gc, text)
 }
 
 //This function carries out commands.  It is the interface between your scripting, and the actual engine operation
@@ -439,6 +458,8 @@ func dispatch(command string, gc *GlobalConfig) {
 		NextBuffer(gc)
 	case "PREVIOUS-BUFFER":
 		PreviousBuffer(gc)
+	case "CLEAR-BUFFER":
+		ClearActiveBuffer(gc)
 	case "INPUT-MODE":
 		gc.ActiveBuffer.InputMode = true
 	case "START-OF-LINE":
@@ -449,8 +470,8 @@ func dispatch(command string, gc *GlobalConfig) {
 		gc.ActiveBuffer.Formatter.Vertical = true
 	case "TOGGLE-VERTICAL-MODE":
 		ToggleVerticalMode(gc)
-		//	case "PASTE-FROM-CLIPBOARD":
-		//		PasteFromClipBoard(gc.ActiveBuffer)
+	case "PASTE-FROM-CLIPBOARD":
+		PasteFromClipBoard(ed)
 	case "COPY-TO-CLIPBOARD":
 		clipboard.WriteAll(gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.SelectStart : gc.ActiveBuffer.Formatter.SelectEnd+1])
 	case "SAVE-FILE":

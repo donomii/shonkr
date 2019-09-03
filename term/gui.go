@@ -74,7 +74,6 @@ func defaultMenu(ctx *nk.Context) {
 	}
 	if 0 < nk.NkButtonLabel(ctx, "Exit") {
 
-		fmt.Println(strings.Join(NodesToStringArray(currentThing), " ") + "\n")
 		app.Stop()
 		os.Exit(0)
 	}
@@ -98,6 +97,13 @@ func drawmenu(ctx *nk.Context, state *State) {
 		nk.NkMenuEnd(ctx)
 	}
 
+	if nk.NkMenuBeginLabel(ctx, "Edit", nk.TextLeft, nk.NkVec2(120, 200)) > 0 {
+		nk.NkLayoutRowDynamic(ctx, 25, 1)
+		if nk.NkMenuItemLabel(ctx, "Paste", nk.TextLeft) > 0 {
+			dispatch("PASTE-FROM-CLIPBOARD", ed)
+		}
+		nk.NkMenuEnd(ctx)
+	}
 	if nk.NkMenuBeginLabel(ctx, "Fonts", nk.TextLeft, nk.NkVec2(120, 200)) > 0 {
 		//static size_t prog = 40;
 		//static int slider = 10;
@@ -135,9 +141,14 @@ func drawmenu(ctx *nk.Context, state *State) {
 		check := int32(1)
 		nk.NkLayoutRowDynamic(ctx, 25, 1)
 
+		if nk.NkMenuItemLabel(ctx, "Clear Buffer", nk.TextLeft) > 0 {
+			dispatch("CLEAR-BUFFER", ed)
+			fmt.Println("Clear buffer")
+		}
+
 		if nk.NkMenuItemLabel(ctx, "Next Buffer", nk.TextLeft) > 0 {
 			dispatch("NEXT-BUFFER", ed)
-			fmt.Println("NExt buffer")
+			fmt.Println("Next buffer")
 		}
 		if nk.NkMenuItemLabel(ctx, "Previous Buffer", nk.TextLeft) > 0 {
 			dispatch("PREVIOUS-BUFFER", ed)
@@ -146,9 +157,7 @@ func drawmenu(ctx *nk.Context, state *State) {
 		if nk.NkMenuItemLabel(ctx, "---------------", nk.TextLeft) > 0 {
 		}
 
-		//fmt.Printf("Bufferlist %+v\n", ed.BufferList)
 		for i, v := range ed.BufferList {
-			//fmt.Printf("Bufferlist %+v\n", v.Data)
 			if nk.NkMenuItemLabel(ctx, fmt.Sprintf("%v) %v", i, v.Data.FileName), nk.TextLeft) > 0 {
 				ed.ActiveBuffer = ed.BufferList[i]
 			}
@@ -192,10 +201,11 @@ func gfxMain(win *glfw.Window, ctx *nk.Context, state *State) {
 	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyEnter) > 0 {
 		go func() { stdinQ <- "\n" }()
 
-		fmt.Printf("Enter: %+v\n", ctx.Input().GetKeyboard())
 		if lastEnterDown == false {
 			ed.ActiveBuffer.Data.Text = fmt.Sprintf("%s%s%s", ed.ActiveBuffer.Data.Text[:ed.ActiveBuffer.Formatter.Cursor], "\n", ed.ActiveBuffer.Data.Text[ed.ActiveBuffer.Formatter.Cursor:])
 			ed.ActiveBuffer.Formatter.Cursor++
+
+			ClearBuffer(ed.StatusBuffer)
 		}
 		lastEnterDown = true
 	} else {
@@ -203,7 +213,6 @@ func gfxMain(win *glfw.Window, ctx *nk.Context, state *State) {
 	}
 
 	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyBackspace) > 0 {
-		fmt.Printf("Back: %+v\n", ctx.Input().GetKeyboard())
 		if lastBackspaceDown == false {
 			dispatch("DELETE-LEFT", ed)
 		}
@@ -248,37 +257,19 @@ func gfxMain(win *glfw.Window, ctx *nk.Context, state *State) {
 			}
 		}
 
-		if currentNode.Name == "File Manager" {
-			QuickFileEditor(ctx)
-		} else {
-			ButtonBox(ctx)
-		}
+		QuickFileEditor(ctx)
 
-		nk.NkLayoutRowDynamic(ctx, 20, 3)
+		nk.NkLayoutRowDynamic(ctx, 200, 1)
 		{
 
-			if 0 < nk.NkButtonLabel(ctx, "Run interactive") {
-
-			}
-		}
-		nk.NkLayoutRowDynamic(ctx, 25, 1)
-		{
-
-			//pf := nk.NewPluginFilterRef(unsafe.Pointer(&nk.NkFilterDefault))
-
-			size := nk.NkVec2(nk.NkWidgetWidth(ctx), 400)
-			if nk.NkComboBeginColor(ctx, state.bgColor, size) > 0 {
-				nk.NkLayoutRowDynamic(ctx, 120, 1)
-				state.bgColor = nk.NkColorPicker(ctx, state.bgColor, nk.ColorFormatRGBA)
-				nk.NkLayoutRowDynamic(ctx, 25, 1)
-				r, g, b, a := state.bgColor.RGBAi()
-				r = nk.NkPropertyi(ctx, "#R:", 0, r, 255, 1, 1)
-				g = nk.NkPropertyi(ctx, "#G:", 0, g, 255, 1, 1)
-				b = nk.NkPropertyi(ctx, "#B:", 0, b, 255, 1, 1)
-				a = nk.NkPropertyi(ctx, "#A:", 0, a, 255, 1, 1)
-				state.bgColor.SetRGBAi(r, g, b, a)
-				nk.NkComboEnd(ctx)
-			}
+			h := 800
+			nkwidth := nk.NkWidgetWidth(ctx)
+			width := int(nkwidth)
+			p1 := make([]uint8, width*h*4)
+			//Want to display status bar here
+			buff := ed.StatusBuffer
+			glim.RenderPara(buff.Formatter, 0, 0, 0, 0, width, h, width, h, 0, 0, p1, buff.Data.Text, true, true, true)
+			doImage(ctx, p1, width, h)
 		}
 
 	}
@@ -295,134 +286,14 @@ func gfxMain(win *glfw.Window, ctx *nk.Context, state *State) {
 	win.SwapBuffers()
 }
 
-func ButtonBox(ctx *nk.Context) {
-	nk.NkLayoutRowDynamic(ctx, 400, 2)
-	{
-		nk.NkGroupBegin(ctx, "Group 1", nk.WindowBorder)
-		nk.NkLayoutRowDynamic(ctx, 20, 1)
-		{
-			for _, vv := range currentNode.SubNodes {
-				//node := vv.SubNodes[i]
-				name := vv.Name
-				command := vv.Command
-				v := vv
-				if nk.NkButtonLabel(ctx, name) > 0 {
-					fmt.Println("Data:", vv.Data)
-					result = vv.Data
-					if !strings.HasPrefix(command, "!") && !strings.HasPrefix(command, "&") {
-						currentThing = append(currentThing, v)
-						currentNode = v
-					}
-				}
-			}
-
-			defaultMenu(ctx)
-		}
-		nk.NkGroupEnd(ctx)
-
-		nk.NkGroupBegin(ctx, "Group 2", nk.WindowBorder)
-		nk.NkLayoutRowDynamic(ctx, 10, 1)
-		{
-			//Control the display
-			nk.NkLayoutRowDynamic(ctx, 20, 3)
-			{
-
-				if 0 < nk.NkButtonLabel(ctx, "None") {
-					displaySplit = "None"
-				}
-
-				if 0 < nk.NkButtonLabel(ctx, "Spaces") {
-					displaySplit = "Spaces"
-				}
-
-				if 0 < nk.NkButtonLabel(ctx, "Tabs") {
-					displaySplit = "Tabs"
-				}
-
-				if displaySplit == "None" {
-					nk.NkLayoutRowDynamic(ctx, 10, 1)
-					{
-						results := strings.Split(result, "\n")
-						for _, v := range results {
-							//nk.NkLabel(ctx, v, nk.WindowBorder)
-							if nk.NkButtonLabel(ctx, v) > 0 {
-								n := makeNodeShort(v, []*Node{})
-								currentThing = append(currentThing, n)
-
-							}
-						}
-					}
-				}
-
-				if displaySplit == "Spaces" {
-					nk.NkLayoutRowDynamic(ctx, 10, 5)
-					{
-						results := strings.Split(result, "\n")
-						for _, line := range results {
-							bits := strings.Split(line, " ")
-							for i := 0; i < 5; i++ {
-								label := ""
-								if i < len(bits) {
-									label = bits[i]
-								} else {
-									label = ""
-								}
-								//nk.NkLabel(ctx, v, nk.WindowBorder)
-								if nk.NkButtonLabel(ctx, label) > 0 {
-									n := makeNodeShort(label, []*Node{})
-									currentThing = append(currentThing, n)
-
-								}
-							}
-						}
-					}
-				}
-
-			}
-
-		}
-		nk.NkGroupEnd(ctx)
-	}
-
-}
-
 func QuickFileEditor(ctx *nk.Context) {
 
-	nk.NkLayoutRowDynamic(ctx, float32(winHeight), 2)
+	nk.NkLayoutRowDynamic(ctx, float32(0), 2)
 	{
-		nk.NkGroupBegin(ctx, "Group 1", nk.WindowBorder)
-		nk.NkLayoutRowDynamic(ctx, 20, 1)
-		{
-
-			for _, vv := range DirFiles {
-				//fmt.Println("File ",i, ":", vv)
-				if nk.NkButtonLabel(ctx, vv) > 0 {
-					fmt.Println("Loading file ", vv)
-					LoadFileIfNotLoaded(ed, vv)
-					//var err error
-					//EditBytes, err = ioutil.ReadFile(vv)
-					//AddActiveBuffer(ed, string(EditBytes), vv)
-					//log.Println(err)
-				}
-
-			}
-		}
-
-		w := 200
-		h := 200
-		p1 := make([]uint8, w*h*4)
-		//Want to display status bar here
-		//fmt.Printf("Bufferlist %+v\n", ed.BufferList)
-		buff := ed.StatusBuffer
-		glim.RenderPara(buff.Formatter, 0, 0, 0, 0, w, h, w, h, 0, 0, p1, buff.Data.Text, true, true, true)
-		doImage(ctx, p1, w, h)
-		nk.NkGroupEnd(ctx)
-
-		nk.NkGroupBegin(ctx, "Group 2", nk.WindowBorder)
 
 		//nk.NkLayoutRowStatic(ctx, 100, 100, 3)
 		//nk.NkLayoutRowDynamic(ctx, float32(winHeight), 1)
-		height := 500
+		height := 200
 		butts := ctx.Input().Mouse().GetButtons()
 		keys := ctx.Input().Keyboard()
 
@@ -432,8 +303,8 @@ func QuickFileEditor(ctx *nk.Context) {
 		ll := *l
 		if ll > 0 {
 			if *(ctx.Input().GetKeyboard().GetTextLen()) > 0 {
-				fmt.Printf("%+v\n", ctx.Input())
-				fmt.Printf("%+s\n", ctx.Input().GetKeyboard().GetText())
+				//fmt.Printf("%+v\n", ctx.Input())
+				//fmt.Printf("%+s\n", ctx.Input().GetKeyboard().GetText())
 			}
 			s := fmt.Sprintf("\"%vu%04x\"", `\`, int(text[0]))
 			s2, _ := strconv.Unquote(s)
@@ -441,7 +312,6 @@ func QuickFileEditor(ctx *nk.Context) {
 			go func() { stdinQ <- fmt.Sprintf("%v", s2) }()
 			//stdinQ <- fmt.Sprintf("%v", s2)
 			//log.Println(err)
-			log.Printf("Text: %v, %v\n", s, s2)
 			/*newBytes := append(EditBytes[:form.Cursor], []byte(s2)...)
 			newBytes = append(newBytes, EditBytes[form.Cursor:]...)
 			form.Cursor++
@@ -450,15 +320,14 @@ func QuickFileEditor(ctx *nk.Context) {
 				ed.ActiveBuffer.Formatter.Cursor = 0
 			}
 
-			fmt.Printf("Inserting at %v, length %v\n", ed.ActiveBuffer.Formatter.Cursor, len(ed.ActiveBuffer.Data.Text))
-			ed.ActiveBuffer.Data.Text = fmt.Sprintf("%s%s%s", ed.ActiveBuffer.Data.Text[:ed.ActiveBuffer.Formatter.Cursor], fmt.Sprintf("%v", s2), ed.ActiveBuffer.Data.Text[ed.ActiveBuffer.Formatter.Cursor:])
-			ed.ActiveBuffer.Formatter.Cursor++
+			//fmt.Printf("Inserting at %v, length %v\n", ed.ActiveBuffer.Formatter.Cursor, len(ed.ActiveBuffer.Data.Text))
+			ActiveBufferInsert(ed, fmt.Sprintf("%v", s2))
+
 		}
 		mouseX, mouseY := int32(-1000), int32(-1000)
 
 		for _, v := range butts {
 			if *v.GetClicked() > 0 {
-				//fmt.Printf("%+v\n", ctx.Input())
 				mouseX, mouseY = ctx.Input().Mouse().Pos()
 
 				log.Println("Click at ", mouseX, mouseY)
@@ -475,10 +344,6 @@ func QuickFileEditor(ctx *nk.Context) {
 				nkwidth := nk.NkWidgetWidth(ctx)
 				width := int(nkwidth)
 
-				//fmt.Println("Width:", width)
-				//var lenStr = int32(len(EditBytes))
-				//nk.NkEditString(ctx, nk.EditMultiline|nk.EditAlwaysInsertMode, EditBytes, &lenStr, 512, nk.NkFilterAscii) FIXME
-				//nk.NkLabelWrap(ctx, string(EditBytes))
 				pic := make([]uint8, width*nuHeight*4)
 
 				form.Colour = &glim.RGBA{255, 255, 255, 255}
@@ -496,25 +361,12 @@ func QuickFileEditor(ctx *nk.Context) {
 					}
 				}
 
-				//pic, width, height := glim.GFormatToImage(im, nil, width, height)
-				//gl.DeleteTextures(testim)
-				//t, err := nktemplates.LoadImageFile(fmt.Sprintf("%v/progress%05v.png", output, fnum), width, height)
-				//t := nktemplates.LoadImageData(globalPic, width, height)
 				mapTex, _ = nktemplates.RawTexture(glim.Uint8ToBytes(pic),
 					int32(width), int32(nuHeight), mapTex)
 				var err error = nil
 				if err == nil {
 					testim := nk.NkImageId(int32(mapTex.Handle))
-					//nk.NkLayoutRowStatic(ctx, 400, 400, 1)
-					//{
-					//log.Println("Drawing image")
 
-					/*
-						if nk.NkButtonImage(ctx, testim) > 0 {
-							ed.ActiveBuffer.Data.Text = fmt.Sprintf("%s%s%s", ed.ActiveBuffer.Data.Text[:ed.ActiveBuffer.Formatter.Cursor], "\n", ed.ActiveBuffer.Data.Text[ed.ActiveBuffer.Formatter.Cursor:])
-							ed.ActiveBuffer.Formatter.Cursor++
-						}
-					*/
 					nk.NkImage(ctx, testim)
 					//}
 				} else {
@@ -522,7 +374,7 @@ func QuickFileEditor(ctx *nk.Context) {
 				}
 			}
 		}
-		nk.NkGroupEnd(ctx)
+
 	}
 
 }

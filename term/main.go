@@ -135,23 +135,32 @@ func shellProc(path string) (chan string, chan string, chan string) {
 	go func() {
 		for {
 			data := <-stdinQ
-			log.Println("sent to process:", data)
-			fmt.Fprintf(stdin, data)
+			if data != "" {
+				log.Println("sent to process:", []byte(data))
+				fmt.Fprintf(stdin, data)
+			}
 		}
 	}()
 	rdout := bufio.NewReader(out)
 	go func() {
 		for {
-			if useReadLine {
-				data, _ := rdout.ReadString([]byte("\n")[0])
-				stdoutQ <- data
-			} else {
 
-				var data []byte = make([]byte, 1024)
-				count, err := rdout.Read(data)
+			if useReadLine {
+				data, err := rdout.ReadString([]byte("\n")[0])
 				if err != nil {
 					log.Fatal(err)
 				}
+				stdoutQ <- data
+			} else {
+				if rdout.Buffered() > 0 {
+					log.Printf("%v characters ready to read from stdout:", rdout.Buffered())
+				}
+				var data []byte = make([]byte, 1024*1024)
+				count, err := out.Read(data)
+				if err != nil {
+					log.Fatal(err)
+				}
+				log.Printf("read %v bytes from process: %v,%v\n", count, string(data[:count]), []byte(data[:count]))
 				if count > 0 {
 					//log.Println("read from process:", data)
 					stdoutQ <- string(data[:count])
@@ -164,12 +173,17 @@ func shellProc(path string) (chan string, chan string, chan string) {
 	go func() {
 		for {
 			if useReadLine {
-				data, _ := rderr.ReadString([]byte("\n")[0])
+				data, err := rderr.ReadString([]byte("\n")[0])
+				if err != nil {
+					log.Fatal(err)
+				}
 				stderrQ <- data
 			} else {
-
+				if rdout.Buffered() > 0 {
+					log.Printf("%v characters ready to read from stderr:", rderr.Buffered())
+				}
 				var data []byte = make([]byte, 1024)
-				count, err := rderr.Read(data)
+				count, err := errPipe.Read(data)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -329,13 +343,7 @@ func main() {
 
 	atlas := nk.NewFontAtlas()
 	nk.NkFontStashBegin(&atlas)
-	/*data, err := ioutil.ReadFile("FreeSans.ttf")
-	if err != nil {
-		panic("Could not find file")
-	}*/
-
 	sansFont := nk.NkFontAtlasAddFromBytes(atlas, goregular.TTF, 16, nil)
-	// sansFont := nk.NkFontAtlasAddDefault(atlas, 16, nil)
 	nk.NkFontStashEnd()
 	if sansFont != nil {
 		nk.NkStyleSetFont(ctx, sansFont.Handle())
@@ -352,18 +360,24 @@ func main() {
 		bgColor: nk.NkRgba(255, 255, 255, 255),
 	}
 
-	stdinQ, stdoutQ, stderrQ = shellProc("/bin/sh")
+	stdinQ, stdoutQ, stderrQ = shellProc("/bin/bash")
 	//stdinQ <- "ls -lR\n"
 	go func() {
-		data := <-stdoutQ
-		ActiveBufferInsert(ed, data)
-		//ed.StatusBuffer.Data.Text = ed.StatusBuffer.Data.Text + data
+		for {
+			log.Println("Waiting for data from stdoutQ")
+			data := <-stdoutQ
+			log.Println("Received:", data)
+			SetBuffer(ed.StatusBuffer, data)
+			//ActiveBufferInsert(ed, data)
+		}
 	}()
 
 	go func() {
-		data := <-stderrQ
-		ActiveBufferInsert(ed, data)
-		//ed.ActiveBuffer.Data.Text = ed.ActiveBuffer.Data.Text + data
+		for {
+			data := <-stderrQ
+			log.Println("Received:", data)
+			ActiveBufferInsert(ed, data)
+		}
 	}()
 
 	fpsTicker := time.NewTicker(time.Second / 30)
