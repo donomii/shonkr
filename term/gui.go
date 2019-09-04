@@ -200,12 +200,19 @@ func gfxMain(win *glfw.Window, ctx *nk.Context, state *State) {
 	nk.NkWindowSetSize(ctx, appName, nk.NkVec2(float32(winWidth), float32(winHeight)))
 	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyEnter) > 0 {
 		go func() { stdinQ <- "\n" }()
+		log.Println("tmt:", tmt_get_screen(vt), "<--")
 
 		if lastEnterDown == false {
-			ed.ActiveBuffer.Data.Text = fmt.Sprintf("%s%s%s", ed.ActiveBuffer.Data.Text[:ed.ActiveBuffer.Formatter.Cursor], "\n", ed.ActiveBuffer.Data.Text[ed.ActiveBuffer.Formatter.Cursor:])
-			ed.ActiveBuffer.Formatter.Cursor++
+			/*
+					ClearBuffer(ed.StatusBuffer)
+					BuffAppend(ed.StatusBuffer, ed.ActiveBuffer.Data.Text)
+					BuffAppend(ed.StatusBuffer, "\n")
+					ed.StatusBuffer.Formatter.TailBuffer = true
 
-			ClearBuffer(ed.StatusBuffer)
+				ClearBuffer(ed.ActiveBuffer)
+			*/
+			SetBuffer(ed.ActiveBuffer, tmt_get_screen(vt))
+			SetBuffer(ed.StatusBuffer, tmt_get_screen(vt))
 		}
 		lastEnterDown = true
 	} else {
@@ -262,7 +269,7 @@ func gfxMain(win *glfw.Window, ctx *nk.Context, state *State) {
 		nk.NkLayoutRowDynamic(ctx, 200, 1)
 		{
 
-			h := 800
+			h := 450
 			nkwidth := nk.NkWidgetWidth(ctx)
 			width := int(nkwidth)
 			p1 := make([]uint8, width*h*4)
@@ -293,7 +300,7 @@ func QuickFileEditor(ctx *nk.Context) {
 
 		//nk.NkLayoutRowStatic(ctx, 100, 100, 3)
 		//nk.NkLayoutRowDynamic(ctx, float32(winHeight), 1)
-		height := 200
+		height := 450
 		butts := ctx.Input().Mouse().GetButtons()
 		keys := ctx.Input().Keyboard()
 
@@ -310,6 +317,7 @@ func QuickFileEditor(ctx *nk.Context) {
 			s2, _ := strconv.Unquote(s)
 			//go func() { stdinQ <- "ls -lR\n" }()
 			go func() { stdinQ <- fmt.Sprintf("%v", s2) }()
+			tmt_process_text(vt, fmt.Sprintf("%v", s2))
 			//stdinQ <- fmt.Sprintf("%v", s2)
 			//log.Println(err)
 			/*newBytes := append(EditBytes[:form.Cursor], []byte(s2)...)
