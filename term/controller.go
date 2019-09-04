@@ -249,8 +249,12 @@ func LoadFileIfNotLoaded(gc *GlobalConfig, fileName string) {
 
 }
 
-func BuffAppend(gc *GlobalConfig, buffId int, txt string) {
+func BuffIdAppend(gc *GlobalConfig, buffId int, txt string) {
 	gc.BufferList[buffId].Data.Text = strings.Join([]string{gc.BufferList[buffId].Data.Text, txt}, "")
+}
+
+func BuffAppend(buff *Buffer, txt string) {
+	buff.Data.Text = strings.Join([]string{buff.Data.Text, txt}, "")
 }
 
 func ActiveBufferAppend(gc *GlobalConfig, txt string) {
@@ -259,13 +263,13 @@ func ActiveBufferAppend(gc *GlobalConfig, txt string) {
 
 func ActiveBufferInsert(gc *GlobalConfig, txt string) {
 	if gc.ActiveBuffer.Formatter.Cursor < 0 {
+		log.Println("Warning: cursor position < 0")
 		gc.ActiveBuffer.Formatter.Cursor = 0
 	}
-	log.Printf("Inserting at %v, length %v\n", gc.ActiveBuffer.Formatter.Cursor, len(gc.ActiveBuffer.Data.Text))
+	log.Printf("Inserting at %v, length %v\n", gc.ActiveBuffer.Formatter.Cursor, len(txt))
 	gc.ActiveBuffer.Data.Text = fmt.Sprintf("%s%s%s", gc.ActiveBuffer.Data.Text[:ed.ActiveBuffer.Formatter.Cursor], txt, gc.ActiveBuffer.Data.Text[ed.ActiveBuffer.Formatter.Cursor:])
 	gc.ActiveBuffer.Formatter.Cursor = gc.ActiveBuffer.Formatter.Cursor + len(txt)
-	gc.ActiveBuffer.Formatter.Cursor = len(gc.ActiveBuffer.Data.Text)
-
+	log.Printf("Cursor now %v\n", gc.ActiveBuffer.Formatter.Cursor)
 }
 
 func SSHAgent() ssh.AuthMethod {
@@ -364,6 +368,9 @@ func IncreaseFont(buf *Buffer) {
 	fmt.Println("Font size", buf.Formatter.FontSize)
 	glim.ClearAllCaches()
 }
+func ClearCaches(gc *GlobalConfig) {
+	glim.ClearAllCaches()
+}
 
 func DoPageDown(gc *GlobalConfig, buf *Buffer) {
 	PageDown(gc.ActiveBuffer)
@@ -427,6 +434,8 @@ func PasteFromClipBoard(gc *GlobalConfig) {
 //This function carries out commands.  It is the interface between your scripting, and the actual engine operation
 func dispatch(command string, gc *GlobalConfig) {
 	switch command {
+	case "CLEAR-CACHES":
+		ClearCaches(gc)
 	case "DELETE-LEFT":
 		if gc.ActiveBuffer.Formatter.Cursor > 0 {
 			gc.ActiveBuffer.Data.Text = DeleteLeft(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
@@ -474,6 +483,12 @@ func dispatch(command string, gc *GlobalConfig) {
 		PasteFromClipBoard(ed)
 	case "COPY-TO-CLIPBOARD":
 		clipboard.WriteAll(gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.SelectStart : gc.ActiveBuffer.Formatter.SelectEnd+1])
+	case "CUT-TO-CLIPBOARD":
+		dispatch("COPY-TO-CLIPBOARD", gc)
+		dispatch("EXCISE-SELECTION", gc)
+		gc.ActiveBuffer.Formatter.Cursor = gc.ActiveBuffer.Formatter.SelectStart
+		gc.ActiveBuffer.Formatter.SelectStart = -1
+		gc.ActiveBuffer.Formatter.SelectEnd = -1
 	case "SAVE-FILE":
 		SaveFile(gc, gc.ActiveBuffer.Data.FileName, gc.ActiveBuffer.Data.Text)
 	case "SEEK-EOL":
