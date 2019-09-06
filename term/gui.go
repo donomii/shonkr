@@ -19,6 +19,8 @@ import (
 
 	"fmt"
 
+	"github.com/atotto/clipboard"
+
 	"log"
 	"os"
 
@@ -100,7 +102,13 @@ func drawmenu(ctx *nk.Context, state *State) {
 	if nk.NkMenuBeginLabel(ctx, "Edit", nk.TextLeft, nk.NkVec2(120, 200)) > 0 {
 		nk.NkLayoutRowDynamic(ctx, 25, 1)
 		if nk.NkMenuItemLabel(ctx, "Paste", nk.TextLeft) > 0 {
-			dispatch("PASTE-FROM-CLIPBOARD", ed)
+			//dispatch("PASTE-FROM-CLIPBOARD", ed) //Adds it to the local buffer
+			text, _ := clipboard.ReadAll()
+			shellIn <- []byte(text)
+		}
+		if nk.NkMenuItemLabel(ctx, "Send Break", nk.TextLeft) > 0 {
+
+			shellIn <- []byte{3}
 		}
 		nk.NkMenuEnd(ctx)
 	}
@@ -198,9 +206,23 @@ func gfxMain(win *glfw.Window, ctx *nk.Context, state *State) {
 
 	nk.NkWindowSetPosition(ctx, appName, nk.NkVec2(0, 0))
 	nk.NkWindowSetSize(ctx, appName, nk.NkVec2(float32(winWidth), float32(winHeight)))
+
+	keys := ctx.Input().Keyboard()
+
+	text := keys.GetText()
+	var l *int32
+	l = keys.GetTextLen()
+	ll := *l
+	if ll > 0 {
+		if *(ctx.Input().GetKeyboard().GetTextLen()) > 0 {
+			fmt.Printf("%+v\n", ctx.Input())
+			fmt.Printf("%+s\n", ctx.Input().GetKeyboard().GetText())
+		}
+	}
+	s := fmt.Sprintf("\"%vu%04x\"", `\`, int(text[0]))
+	NormalKey, _ := strconv.Unquote(s)
+
 	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyEnter) > 0 {
-		go func() { stdinQ <- "\n" }()
-		log.Println("tmt:", tmt_get_screen(vt), "<--")
 
 		if lastEnterDown == false {
 			/*
@@ -212,7 +234,10 @@ func gfxMain(win *glfw.Window, ctx *nk.Context, state *State) {
 				ClearBuffer(ed.ActiveBuffer)
 			*/
 			SetBuffer(ed.ActiveBuffer, tmt_get_screen(vt))
-			SetBuffer(ed.StatusBuffer, tmt_get_screen(vt))
+			//SetBuffer(ed.StatusBuffer, tmt_get_screen(vt))
+			ClearBuffer(ed.StatusBuffer)
+			go func() { shellIn <- []byte("\n") }()
+			//log.Println("tmt:", tmt_get_screen(vt), "<--")
 		}
 		lastEnterDown = true
 	} else {
@@ -222,26 +247,47 @@ func gfxMain(win *glfw.Window, ctx *nk.Context, state *State) {
 	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyBackspace) > 0 {
 		if lastBackspaceDown == false {
 			dispatch("DELETE-LEFT", ed)
+			go func() { shellIn <- []byte{127} }()
 		}
 		lastBackspaceDown = true
 	} else {
 		lastBackspaceDown = false
 	}
 
+	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyCtrl) > 0 {
+		log.Println("Control")
+		os.Exit(1)
+		if NormalKey == "c" {
+			go func() { shellIn <- []byte{03} }()
+		}
+	}
+	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyPaste) > 0 {
+		text, _ := clipboard.ReadAll()
+		shellIn <- []byte(text)
+	}
+
 	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyLeft) > 0 {
 		dispatch("PREVIOUS-CHARACTER", ed)
+		go func() { shellIn <- []byte("\u001b[D") }()
 	}
 
 	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyRight) > 0 {
 		dispatch("NEXT-CHARACTER", ed)
+		go func() { shellIn <- []byte("\u001b[C") }()
 	}
 
 	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyDown) > 0 {
 		dispatch("NEXT-LINE", ed)
+		go func() { shellIn <- []byte("\u001b[B") }()
 	}
 
 	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyUp) > 0 {
 		dispatch("PREVIOUS-LINE", ed)
+		go func() { shellIn <- []byte("\u001b[A") }()
+	}
+
+	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyTab) > 0 {
+		go func() { shellIn <- []byte("\t") }()
 	}
 
 	if update > 0 {
@@ -315,9 +361,9 @@ func QuickFileEditor(ctx *nk.Context) {
 			}
 			s := fmt.Sprintf("\"%vu%04x\"", `\`, int(text[0]))
 			s2, _ := strconv.Unquote(s)
-			//go func() { stdinQ <- "ls -lR\n" }()
-			go func() { stdinQ <- fmt.Sprintf("%v", s2) }()
-			tmt_process_text(vt, fmt.Sprintf("%v", s2))
+			//go func() { shellIn <- "ls -lR\n" }()
+			go func() { shellIn <- []byte(fmt.Sprintf("%v", s2)) }()
+			//tmt_process_text(vt, fmt.Sprintf("%v", s2))
 			//stdinQ <- fmt.Sprintf("%v", s2)
 			//log.Println(err)
 			/*newBytes := append(EditBytes[:form.Cursor], []byte(s2)...)
@@ -329,7 +375,7 @@ func QuickFileEditor(ctx *nk.Context) {
 			}
 
 			//fmt.Printf("Inserting at %v, length %v\n", ed.ActiveBuffer.Formatter.Cursor, len(ed.ActiveBuffer.Data.Text))
-			ActiveBufferInsert(ed, fmt.Sprintf("%v", s2))
+			//ActiveBufferInsert(ed, fmt.Sprintf("%v", s2))
 
 		}
 		mouseX, mouseY := int32(-1000), int32(-1000)
@@ -356,7 +402,8 @@ func QuickFileEditor(ctx *nk.Context) {
 
 				form.Colour = &glim.RGBA{255, 255, 255, 255}
 				//form.Cursor = 20
-				form.FontSize = 12
+				ed.ActiveBuffer.Formatter.Colour = &glim.RGBA{255, 255, 255, 255}
+				ed.ActiveBuffer.Formatter.Outline = false
 				newCursor, _, _ := glim.RenderPara(ed.ActiveBuffer.Formatter,
 					0, 0, 0, 0,
 					width, nuHeight, width, nuHeight,

@@ -341,7 +341,7 @@ func ScrollToCursor(buf *Buffer) {
 func ExciseSelection(buf *Buffer) {
 	if buf.Formatter.SelectStart >= 0 && buf.Formatter.SelectStart < len(buf.Data.Text) {
 		if buf.Formatter.SelectEnd > 0 && buf.Formatter.SelectEnd < len(buf.Data.Text) {
-			log.Println("Clipping from ", buf.Formatter.SelectStart, " to ", buf.Formatter.SelectEnd)
+			//log.Println("Clipping from ", buf.Formatter.SelectStart, " to ", buf.Formatter.SelectEnd)
 			buf.Data.Text = fmt.Sprintf("%s%s",
 				buf.Data.Text[:buf.Formatter.SelectStart],
 				buf.Data.Text[buf.Formatter.SelectEnd+1:])
@@ -351,7 +351,7 @@ func ExciseSelection(buf *Buffer) {
 	}
 }
 
-func ReduceFont(buf *Buffer) {
+func DecreaseFont(buf *Buffer) {
 	buf.Formatter.FontSize -= 1
 	glim.ClearAllCaches()
 
@@ -359,13 +359,13 @@ func ReduceFont(buf *Buffer) {
 
 func SetFont(buf *Buffer, size float64) {
 	buf.Formatter.FontSize = size
-	fmt.Println("Font size", buf.Formatter.FontSize)
+	//fmt.Println("Font size", buf.Formatter.FontSize)
 	glim.ClearAllCaches()
 }
 
 func IncreaseFont(buf *Buffer) {
 	buf.Formatter.FontSize += 1
-	fmt.Println("Font size", buf.Formatter.FontSize)
+	//fmt.Println("Font size", buf.Formatter.FontSize)
 	glim.ClearAllCaches()
 }
 func ClearCaches(gc *GlobalConfig) {
@@ -447,8 +447,8 @@ func dispatch(command string, gc *GlobalConfig) {
 		gc.ActiveBuffer.Formatter.Cursor = ScanToNextLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
 	case "EXCISE-SELECTION": //Cut
 		ExciseSelection(gc.ActiveBuffer)
-	case "REDUCE-FONT":
-		ReduceFont(gc.ActiveBuffer)
+	case "DECREASE-FONT":
+		DecreaseFont(gc.ActiveBuffer)
 	case "INCREASE-FONT":
 		IncreaseFont(gc.ActiveBuffer)
 		//	case "PAGEDOWN":
@@ -654,7 +654,7 @@ func handleEvent(a app.App, i interface{}) {
 				case '+':
 					dispatch("INCREASE-FONT", gc)
 				case '-':
-					dispatch("REDUCE-FONT", gc)
+					dispatch("DECREASE-FONT", gc)
 				case 'B':
 					glim.ClearAllCaches()
 					Log2Buff("Caches cleared")

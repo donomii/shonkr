@@ -6,10 +6,10 @@ package main
 import "C"
 
 import (
+	"bytes"
 	"os"
+
 	//"os"
-	"bufio"
-	"os/exec"
 
 	"encoding/json"
 	"io/ioutil"
@@ -42,6 +42,19 @@ import (
 	"github.com/donomii/goof"
 	"github.com/rivo/tview"
 )
+
+/*
+int launchShell() {
+int masterFd;
+char* args[] = {"/bin/bash", "-i", NULL };
+int procId = forkpty(&masterFd, NULL, NULL,  NULL);
+if( procId == 0 ){
+  execve( args[0], args, NULL);
+}
+return masterFd;
+}
+*/
+import "C"
 
 var form *glim.FormatParams
 var demoText = "hi"
@@ -110,95 +123,6 @@ func NodesToStringArray(ns []*Node) []string {
 
 }
 
-func shellProc(path string) (chan string, chan string, chan string) {
-	useReadLine := true
-	stdinQ := make(chan string, 100)
-	stdoutQ := make(chan string, 100)
-	stderrQ := make(chan string, 100)
-
-	cmd := exec.Command(path)
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	out, err := cmd.StdoutPipe()
-	if err != nil {
-		log.Fatal(err)
-	}
-	errPipe, err := cmd.StderrPipe()
-	if err != nil {
-		log.Fatal(err)
-	}
-	if err := cmd.Start(); err != nil {
-		log.Fatal(err)
-	}
-	go func() {
-		for {
-			data := <-stdinQ
-			if data != "" {
-				//log.Println("sent to process:", []byte(data))
-				fmt.Fprintf(stdin, data)
-			}
-		}
-	}()
-	rdout := bufio.NewReader(out)
-	go func() {
-		for {
-
-			if useReadLine {
-				data, err := rdout.ReadString([]byte("\n")[0])
-				if err != nil {
-					log.Fatal(err)
-				}
-				stdoutQ <- data
-			} else {
-				if rdout.Buffered() > 0 {
-					log.Printf("%v characters ready to read from stdout:", rdout.Buffered())
-				}
-				var data []byte = make([]byte, 1024*1024)
-				count, err := out.Read(data)
-				if err != nil {
-					log.Fatal(err)
-				}
-				log.Printf("read %v bytes from process: %v,%v\n", count, string(data[:count]), []byte(data[:count]))
-				if count > 0 {
-					//log.Println("read from process:", data)
-					stdoutQ <- string(data[:count])
-				}
-			}
-
-		}
-	}()
-	rderr := bufio.NewReader(errPipe)
-	go func() {
-		for {
-			if useReadLine {
-				data, err := rderr.ReadString([]byte("\n")[0])
-				if err != nil {
-					log.Fatal(err)
-				}
-				stderrQ <- data
-			} else {
-				if rdout.Buffered() > 0 {
-					log.Printf("%v characters ready to read from stderr:", rderr.Buffered())
-				}
-				var data []byte = make([]byte, 1024)
-				count, err := errPipe.Read(data)
-				if err != nil {
-					log.Fatal(err)
-				}
-				if count > 0 {
-					//log.Println("read from process:", data)
-					stderrQ <- string(data[:count])
-				}
-			}
-
-		}
-	}()
-	return stdinQ, stdoutQ, stderrQ
-}
-
 func fileManagerMenu() *Node {
 	return makeNodeShort("File Manager", []*Node{})
 }
@@ -261,7 +185,7 @@ var ed *GlobalConfig
 var config UserConfig
 var confFile string
 
-var stdinQ, stdoutQ, stderrQ chan string
+var stdinQ, stdoutQ, stderrQ, shellIn, shellOut chan []byte
 
 func tmt_process_text(vt *_Ctype_struct_TMT, text string) {
 	C.tmt_write(vt, C.CString(text), 0)
@@ -296,6 +220,11 @@ func main() {
 	os.Setenv("LINES", "24")
 	os.Setenv("COLUMNS", "80")
 	os.Setenv("PS1", ">")
+	fileHandle := uintptr(C.launchShell())
+	shellIn, shellOut = goof.WrapHandle(fileHandle, 100)
+	shellIn <- []byte("ls\n")
+	//fmt.Println(<-shellOut)
+
 	vt = C.terminal_open()
 	C.tmt_resize(vt, 24, 80)
 	C.tmt_write(vt, C.CString("\033[1mWelcome to Watterm\033[0m\n"), 0)
@@ -321,6 +250,7 @@ func main() {
 	ed = NewEditor()
 	//Create a text formatter
 	form = glim.NewFormatter()
+	SetFont(ed.ActiveBuffer, 8)
 
 	jsonerr := json.Unmarshal([]byte(menuData), &myMenu)
 	if jsonerr != nil {
@@ -381,16 +311,16 @@ func main() {
 		bgColor: nk.NkRgba(255, 255, 255, 255),
 	}
 
-	stdinQ, stdoutQ, stderrQ = shellProc("/bin/bash")
+	stdinQ, stdoutQ, stderrQ = goof.WrapProc("/bin/bash", 100)
 	//stdinQ <- "ls -lR\n"
 	go func() {
 		for {
 			log.Println("Waiting for data from stdoutQ")
-			data := <-stdoutQ
-			data = strings.Replace(data, "\n", "\r\n", -1)
+			data := <-shellOut
+			data = bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1)
 			//log.Println("Received:", data, "<---", []byte(data))
-			BuffAppend(ed.StatusBuffer, data)
-			tmt_process_text(vt, data)
+			//BuffAppend(ed.StatusBuffer, string(data))
+			tmt_process_text(vt, string(data))
 			SetBuffer(ed.ActiveBuffer, tmt_get_screen(vt))
 			//ActiveBufferInsert(ed, data)
 		}
@@ -400,13 +330,14 @@ func main() {
 		for {
 			data := <-stderrQ
 			//log.Println("Received:", data)
-			ActiveBufferInsert(ed, data)
+			BuffAppend(ed.StatusBuffer, string(data))
 		}
 	}()
 
 	fpsTicker := time.NewTicker(time.Second / 30)
 	currentNode.Name = "File Manager"
 	LoadFileIfNotLoaded(ed, flag.Arg(0))
+	SetFont(ed.ActiveBuffer, 8)
 	for {
 		select {
 		case <-exitC:
