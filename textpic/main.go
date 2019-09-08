@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"io/ioutil"
 
 	"github.com/donomii/glim"
 )
@@ -10,14 +11,20 @@ func main() {
 
 	var outFile string
 	var message string
+	var messageFile string
 	var width int
 	var height int
 	flag.StringVar(&outFile, "file", "image.png", "Save the picture to this file")
 	flag.StringVar(&message, "message", "Hello world!", "Message to render")
+	flag.StringVar(&message, "message-file", "", "Read message from file")
 	flag.IntVar(&width, "width", 640, "Picture width")
 	flag.IntVar(&height, "height", 480, "Picture height")
 	flag.Parse()
 
+	if messageFile != "" {
+		contents, _ := ioutil.ReadFile(messageFile)
+		message = string(contents)
+	}
 	p1 := make([]uint8, width*height*4)
 	formatter := glim.NewFormatter()
 	glim.RenderPara(formatter, 0, 0, 0, 0, width, height, width, height, 0, 0, p1, message, true, true, true)
