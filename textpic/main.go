@@ -16,7 +16,7 @@ func main() {
 	var height int
 	flag.StringVar(&outFile, "file", "image.png", "Save the picture to this file")
 	flag.StringVar(&message, "message", "Hello world!", "Message to render")
-	flag.StringVar(&message, "message-file", "", "Read message from file")
+	flag.StringVar(&messageFile, "message-file", "", "Read message from file")
 	flag.IntVar(&width, "width", 640, "Picture width")
 	flag.IntVar(&height, "height", 480, "Picture height")
 	flag.Parse()
