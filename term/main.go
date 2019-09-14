@@ -282,6 +282,35 @@ func main() {
 	}
 	win.MakeContextCurrent()
 
+	win.SetKeyCallback(func(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
+		log.Printf("Got key %v,%v,%v", key, mods, action)
+
+		if mods == 2 && action == 1 && key != 341 {
+			mask := ^byte(64 + 128)
+			log.Printf("mask: %#b", mask)
+			val := byte(key)
+			log.Printf("val: %#b", val)
+			b := mask & val
+			log.Printf("byte: %#b", b)
+			shellIn <- []byte{b}
+
+		}
+		/*
+			if key == 67 && mods == 2 && action == 1 {
+				log.Println("Send break")
+				shellIn <- []byte{3}
+			}
+			if key == 66 && mods == 2 && action == 1 {
+				log.Println("Send Back")
+				shellIn <- []byte{2}
+			}
+			if key == 90 && mods == 2 && action == 1 {
+				log.Println("Send Suspend")
+				shellIn <- []byte{26}
+			}
+		*/
+	})
+
 	width, height := win.GetSize()
 	log.Printf("glfw: created window %dx%d", width, height)
 

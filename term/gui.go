@@ -208,6 +208,7 @@ func gfxMain(win *glfw.Window, ctx *nk.Context, state *State) {
 	nk.NkWindowSetSize(ctx, appName, nk.NkVec2(float32(winWidth), float32(winHeight)))
 
 	keys := ctx.Input().Keyboard()
+	//log.Printf("keys: %v\n", keys)
 
 	text := keys.GetText()
 	var l *int32
@@ -356,7 +357,7 @@ func QuickFileEditor(ctx *nk.Context) {
 		ll := *l
 		if ll > 0 {
 			if *(ctx.Input().GetKeyboard().GetTextLen()) > 0 {
-				//fmt.Printf("%+v\n", ctx.Input())
+				fmt.Printf("%+v\n", ctx.Input())
 				//fmt.Printf("%+s\n", ctx.Input().GetKeyboard().GetText())
 			}
 			s := fmt.Sprintf("\"%vu%04x\"", `\`, int(text[0]))
