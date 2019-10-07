@@ -3,6 +3,7 @@
 package main
 
 /*
+#include <stdlib.h>
 int launchShell() {
 int masterFd;
 char* args[] = {"/bin/bash", "-i", NULL };
@@ -14,6 +15,8 @@ return masterFd;
 }
 */
 import "C"
+
+import "github.com/donomii/goof"
 
 func startShell() (chan []byte, chan []byte) {
 	fileHandle := uintptr(C.launchShell())

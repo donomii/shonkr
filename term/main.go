@@ -1,12 +1,6 @@
 package main
 
-// #cgo CFLAGS: -g -Wall
-// #include <stdlib.h>
-// #include "tmt.h"
-import "C"
-
 import (
-	"bytes"
 	"os"
 
 	//"os"
@@ -175,32 +169,6 @@ var confFile string
 //var stdinQ, stdoutQ, stderrQ,
 var shellIn, shellOut chan []byte
 
-func tmt_process_text(vt *_Ctype_struct_TMT, text string) {
-	C.tmt_write(vt, C.CString(text), 0)
-}
-func tmt_get_screen(vt *_Ctype_struct_TMT) string {
-	var out string
-	scr := C.tmt_screen(vt)
-	fmt.Printf("lines: %v, columns: %v\n", scr.nline, scr.ncol)
-	for i := 0; i < int(scr.nline); i++ {
-		for j := 0; j < int(scr.ncol); j++ {
-			char := fmt.Sprintf("%c", rune(C.terminal_char(vt, C.int(j), C.int(i))))
-			/*
-				if char == " " {
-					out = out + "X"
-				} else {
-					out = out + char
-				}
-			*/
-			out = out + char
-		}
-		out = out + fmt.Sprintf("\n")
-	}
-	return out
-}
-
-var vt *_Ctype_struct_TMT
-
 func main() {
 	runtime.LockOSThread()
 	runtime.GOMAXPROCS(1)
@@ -211,10 +179,6 @@ func main() {
 	shellIn, shellOut = startShell()
 	shellIn <- []byte("ls\n")
 	//fmt.Println(<-shellOut)
-
-	vt = C.terminal_open()
-	C.tmt_resize(vt, 24, 80)
-	C.tmt_write(vt, C.CString("\033[1mWelcome to Watterm\033[0m\n"), 0)
 
 	confFile = goof.ConfigFilePath(".shonkr.json")
 	log.Println("Loading config from:", confFile)
@@ -329,27 +293,8 @@ func main() {
 
 	//stdinQ, stdoutQ, stderrQ = goof.WrapProc("/bin/bash", 100)
 	//stdinQ <- "ls -lR\n"
-	go func() {
-		for {
-			log.Println("Waiting for data from stdoutQ")
-			data := <-shellOut
-			data = bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1)
-			//log.Println("Received:", data, "<---", []byte(data))
-			//BuffAppend(ed.StatusBuffer, string(data))
-			tmt_process_text(vt, string(data))
-			SetBuffer(ed.ActiveBuffer, tmt_get_screen(vt))
-			//ActiveBufferInsert(ed, data)
-		}
-	}()
-	/*
-		go func() {
-			for {
-				data := <-stderrQ
-				//log.Println("Received:", data)
-				BuffAppend(ed.StatusBuffer, string(data))
-			}
-		}()
-	*/
+    start_tmt(shellOut) 
+
 	fpsTicker := time.NewTicker(time.Second / 30)
 	currentNode.Name = "File Manager"
 	LoadFileIfNotLoaded(ed, flag.Arg(0))
