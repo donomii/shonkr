@@ -1,9 +1,5 @@
-# shonkr v3 
+# Terminal 
 
-I think I'm getting the hang of this.
+A cross platform terminal emulator
 
-## Programmer's text editor
-
-Shonkr is an experiment in writing a text editor with some of the features I have dreamed up over the years of grinding out code.
-
-s
+Uses the shokr text editor framework to render a terminal.
