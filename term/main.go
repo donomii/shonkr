@@ -43,19 +43,6 @@ import (
 	"github.com/rivo/tview"
 )
 
-/*
-int launchShell() {
-int masterFd;
-char* args[] = {"/bin/bash", "-i", NULL };
-int procId = forkpty(&masterFd, NULL, NULL,  NULL);
-if( procId == 0 ){
-  execve( args[0], args, NULL);
-}
-return masterFd;
-}
-*/
-import "C"
-
 var form *glim.FormatParams
 var demoText = "hi"
 var displaySplit string = "None"
@@ -185,7 +172,8 @@ var ed *GlobalConfig
 var config UserConfig
 var confFile string
 
-var stdinQ, stdoutQ, stderrQ, shellIn, shellOut chan []byte
+//var stdinQ, stdoutQ, stderrQ,
+var shellIn, shellOut chan []byte
 
 func tmt_process_text(vt *_Ctype_struct_TMT, text string) {
 	C.tmt_write(vt, C.CString(text), 0)
@@ -220,8 +208,7 @@ func main() {
 	os.Setenv("LINES", "24")
 	os.Setenv("COLUMNS", "80")
 	os.Setenv("PS1", ">")
-	fileHandle := uintptr(C.launchShell())
-	shellIn, shellOut = goof.WrapHandle(fileHandle, 100)
+	shellIn, shellOut = startShell()
 	shellIn <- []byte("ls\n")
 	//fmt.Println(<-shellOut)
 
@@ -340,7 +327,7 @@ func main() {
 		bgColor: nk.NkRgba(255, 255, 255, 255),
 	}
 
-	stdinQ, stdoutQ, stderrQ = goof.WrapProc("/bin/bash", 100)
+	//stdinQ, stdoutQ, stderrQ = goof.WrapProc("/bin/bash", 100)
 	//stdinQ <- "ls -lR\n"
 	go func() {
 		for {
@@ -354,15 +341,15 @@ func main() {
 			//ActiveBufferInsert(ed, data)
 		}
 	}()
-
-	go func() {
-		for {
-			data := <-stderrQ
-			//log.Println("Received:", data)
-			BuffAppend(ed.StatusBuffer, string(data))
-		}
-	}()
-
+	/*
+		go func() {
+			for {
+				data := <-stderrQ
+				//log.Println("Received:", data)
+				BuffAppend(ed.StatusBuffer, string(data))
+			}
+		}()
+	*/
 	fpsTicker := time.NewTicker(time.Second / 30)
 	currentNode.Name = "File Manager"
 	LoadFileIfNotLoaded(ed, flag.Arg(0))

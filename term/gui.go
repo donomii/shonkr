@@ -314,17 +314,6 @@ func gfxMain(win *glfw.Window, ctx *nk.Context, state *State) {
 		QuickFileEditor(ctx)
 
 		nk.NkLayoutRowDynamic(ctx, 200, 1)
-		{
-
-			h := 450
-			nkwidth := nk.NkWidgetWidth(ctx)
-			width := int(nkwidth)
-			p1 := make([]uint8, width*h*4)
-			//Want to display status bar here
-			buff := ed.StatusBuffer
-			glim.RenderPara(buff.Formatter, 0, 0, 0, 0, width, h, width, h, 0, 0, p1, buff.Data.Text, true, true, true)
-			doImage(ctx, p1, width, h)
-		}
 
 	}
 	nk.NkEnd(ctx)
@@ -347,7 +336,7 @@ func QuickFileEditor(ctx *nk.Context) {
 
 		//nk.NkLayoutRowStatic(ctx, 100, 100, 3)
 		//nk.NkLayoutRowDynamic(ctx, float32(winHeight), 1)
-		height := 450
+		height := 800
 		butts := ctx.Input().Mouse().GetButtons()
 		keys := ctx.Input().Keyboard()
 
@@ -403,7 +392,7 @@ func QuickFileEditor(ctx *nk.Context) {
 
 				form.Colour = &glim.RGBA{255, 255, 255, 255}
 				//form.Cursor = 20
-				ed.ActiveBuffer.Formatter.Colour = &glim.RGBA{255, 255, 255, 255}
+				ed.ActiveBuffer.Formatter.Colour = &glim.RGBA{0, 255, 255, 255}
 				ed.ActiveBuffer.Formatter.Outline = false
 				newCursor, _, _ := glim.RenderPara(ed.ActiveBuffer.Formatter,
 					0, 0, 0, 0,
