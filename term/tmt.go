@@ -16,10 +16,10 @@ func start_tmt() {
 	C.tmt_write(vt, C.CString("\033[1mWelcome to Watterm\033[0m\n"), 0)
 
 }
-func tmt_process_text(vt *_Ctype_struct_TMT, text string) {
+func tmt_process_text(vt *C.struct_TMT, text string) {
 	C.tmt_write(vt, C.CString(text), 0)
 }
-func tmt_get_screen(vt *_Ctype_struct_TMT) string {
+func tmt_get_screen(vt *C.struct_TMT) string {
 	var out string
 	scr := C.tmt_screen(vt)
 	fmt.Printf("lines: %v, columns: %v\n", scr.nline, scr.ncol)
@@ -40,4 +40,4 @@ func tmt_get_screen(vt *_Ctype_struct_TMT) string {
 	return out
 }
 
-var vt *_Ctype_struct_TMT
+var vt *C.struct_TMT

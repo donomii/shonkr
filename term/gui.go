@@ -21,7 +21,6 @@ import (
 
 	"log"
 	"os"
-
 	//"github.com/donomii/glim"
 )
 
@@ -47,28 +46,6 @@ func handleKeys(ctx *nk.Context) {
 	s := fmt.Sprintf("\"%vu%04x\"", `\`, int(text[0]))
 	NormalKey, _ := strconv.Unquote(s)
 
-	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyEnter) > 0 {
-
-		if lastEnterDown == false {
-			/*
-					ClearBuffer(ed.StatusBuffer)
-					BuffAppend(ed.StatusBuffer, ed.ActiveBuffer.Data.Text)
-					BuffAppend(ed.StatusBuffer, "\n")
-					ed.StatusBuffer.Formatter.TailBuffer = true
-
-				ClearBuffer(ed.ActiveBuffer)
-			*/
-			SetBuffer(ed.ActiveBuffer, tmt_get_screen(vt))
-			//SetBuffer(ed.StatusBuffer, tmt_get_screen(vt))
-			ClearBuffer(ed.StatusBuffer)
-			go func() { shellIn <- []byte("\n") }()
-			//log.Println("tmt:", tmt_get_screen(vt), "<--")
-		}
-		lastEnterDown = true
-	} else {
-		lastEnterDown = false
-	}
-
 	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyBackspace) > 0 {
 		if lastBackspaceDown == false {
 			dispatch("DELETE-LEFT", ed)
@@ -93,22 +70,12 @@ func handleKeys(ctx *nk.Context) {
 
 	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyLeft) > 0 {
 		dispatch("PREVIOUS-CHARACTER", ed)
-		go func() { shellIn <- []byte("\u001b[D") }()
+
 	}
 
 	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyRight) > 0 {
 		dispatch("NEXT-CHARACTER", ed)
-		go func() { shellIn <- []byte("\u001b[C") }()
-	}
 
-	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyDown) > 0 {
-		dispatch("NEXT-LINE", ed)
-		go func() { shellIn <- []byte("\u001b[B") }()
-	}
-
-	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyUp) > 0 {
-		dispatch("PREVIOUS-LINE", ed)
-		go func() { shellIn <- []byte("\u001b[A") }()
 	}
 
 	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyTab) > 0 {
@@ -308,7 +275,7 @@ func QuickFileEditor(ctx *nk.Context) {
 				pic := make([]uint8, width*nuHeight*4)
 
 				form.Colour = &glim.RGBA{255, 255, 255, 255}
-				ed.ActiveBuffer.Formatter.Colour = &glim.RGBA{0, 255, 255, 255}
+				ed.ActiveBuffer.Formatter.Colour = &glim.RGBA{0, 0, 0, 255}
 				ed.ActiveBuffer.Formatter.Outline = false
 				newCursor, _, _ := glim.RenderPara(ed.ActiveBuffer.Formatter,
 					0, 0, 0, 0,

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 
 	//"os"
@@ -133,6 +134,23 @@ func main() {
 			shellIn <- []byte{b}
 
 		}
+		if mods != 2 {
+			switch key {
+			case 257:
+				go func() { shellIn <- []byte("\n") }()
+			case 265:
+				go func() { shellIn <- []byte("\u001b[A") }()
+			case 264:
+				go func() { shellIn <- []byte("\u001b[B") }()
+			case 263:
+				go func() { shellIn <- []byte("\u001b[C") }()
+			case 262:
+				go func() { shellIn <- []byte("\u001b[D") }()
+			case 256:
+				go func() { shellIn <- []byte("\u001b") }()
+
+			}
+		}
 
 	})
 
@@ -180,7 +198,8 @@ func main() {
 	fpsTicker := time.NewTicker(time.Second / 30)
 
 	LoadFileIfNotLoaded(ed, flag.Arg(0))
-	SetFont(ed.ActiveBuffer, 8)
+	SetFont(ed.ActiveBuffer, 12)
+
 	for {
 		select {
 		case <-exitC:
