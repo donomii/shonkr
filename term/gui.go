@@ -264,7 +264,7 @@ func gfxMain(win *glfw.Window, ctx *nk.Context, state *State) {
 }
 
 func QuickFileEditor(ctx *nk.Context) {
-	height := winHeight
+
 	nk.NkLayoutRowDynamic(ctx, float32(0), 2)
 	{
 
@@ -277,27 +277,14 @@ func QuickFileEditor(ctx *nk.Context) {
 		ll := *l
 		if ll > 0 {
 			if *(ctx.Input().GetKeyboard().GetTextLen()) > 0 {
-				fmt.Printf("%+v\n", ctx.Input())
-				//fmt.Printf("%+s\n", ctx.Input().GetKeyboard().GetText())
+				//fmt.Printf("%+v\n", ctx.Input())
 			}
 			s := fmt.Sprintf("\"%vu%04x\"", `\`, int(text[0]))
 			s2, _ := strconv.Unquote(s)
-			//go func() { shellIn <- "ls -lR\n" }()
 			go func() { shellIn <- []byte(fmt.Sprintf("%v", s2)) }()
-			//tmt_process_text(vt, fmt.Sprintf("%v", s2))
-			//stdinQ <- fmt.Sprintf("%v", s2)
-			//log.Println(err)
-			/*newBytes := append(EditBytes[:form.Cursor], []byte(s2)...)
-			newBytes = append(newBytes, EditBytes[form.Cursor:]...)
-			form.Cursor++
-			*/
 			if ed.ActiveBuffer.Formatter.Cursor < 0 {
 				ed.ActiveBuffer.Formatter.Cursor = 0
 			}
-
-			//fmt.Printf("Inserting at %v, length %v\n", ed.ActiveBuffer.Formatter.Cursor, len(ed.ActiveBuffer.Data.Text))
-			//ActiveBufferInsert(ed, fmt.Sprintf("%v", s2))
-
 		}
 		mouseX, mouseY := int32(-1000), int32(-1000)
 
@@ -311,19 +298,16 @@ func QuickFileEditor(ctx *nk.Context) {
 		bounds := nk.NkWidgetBounds(ctx)
 		left := int(*bounds.GetX())
 		top := int(*bounds.GetY())
-		//height = int(*bounds.GetH())
-		nuHeight := height - top
+		nuHeight := 8000
 		nk.NkLayoutRowDynamic(ctx, float32(0), 1)
 		{
-			//if EditBytes != nil {
+
 			if ed != nil {
-				nkwidth := nk.NkWidgetWidth(ctx)
-				width := int(nkwidth)
+				width := int(nk.NkWidgetWidth(ctx))
 
 				pic := make([]uint8, width*nuHeight*4)
 
 				form.Colour = &glim.RGBA{255, 255, 255, 255}
-				//form.Cursor = 20
 				ed.ActiveBuffer.Formatter.Colour = &glim.RGBA{0, 255, 255, 255}
 				ed.ActiveBuffer.Formatter.Outline = false
 				newCursor, _, _ := glim.RenderPara(ed.ActiveBuffer.Formatter,
@@ -349,8 +333,9 @@ func QuickFileEditor(ctx *nk.Context) {
 func doImage(ctx *nk.Context, pic []uint8, width, nuHeight int) {
 	nk.NkLayoutRowDynamic(ctx, float32(nuHeight), 1)
 	{
-		mapTex1, _ = nktemplates.RawTexture(glim.Uint8ToBytes(pic), int32(width), int32(nuHeight), mapTex1)
 		var err error = nil
+		mapTex1, err = nktemplates.RawTexture(glim.Uint8ToBytes(pic), int32(width), int32(nuHeight), mapTex1)
+
 		if err == nil {
 			testim := nk.NkImageId(int32(mapTex1.Handle))
 			nk.NkImage(ctx, testim)
