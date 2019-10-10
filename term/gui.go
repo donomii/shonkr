@@ -2,8 +2,6 @@
 package main
 
 import (
-	"strings"
-
 	//"unsafe"
 	//"io/ioutil"
 	"strconv"
@@ -25,7 +23,6 @@ import (
 	"os"
 
 	//"github.com/donomii/glim"
-	"github.com/donomii/goof"
 )
 
 var DirFiles []string
@@ -34,53 +31,90 @@ var mapTex1 *nktemplates.Texture
 var lastEnterDown bool
 var lastBackspaceDown bool
 
-func defaultMenu(ctx *nk.Context) {
-	col := nk.NewColor()
-	col.SetRGBA(nk.Byte(255), nk.Byte(255), nk.Byte(255), nk.Byte(255))
-	nk.SetBackgroundColor(ctx, *col)
-	if 0 < nk.NkButtonLabel(ctx, "---------") {
-	}
-
-	if 0 < nk.NkButtonLabel(ctx, "Edit Config") {
-		LoadFileIfNotLoaded(ed, confFile)
-		currentNode.Name = "File Manager"
-	}
-
-	if 0 < nk.NkButtonLabel(ctx, "Run command") {
-		cmd := strings.Join(NodesToStringArray(currentThing[1:]), " ")
-		result = goof.Command("cmd", []string{"/c", cmd})
-		result = result + goof.Command("/bin/sh", []string{"-c", cmd})
-	}
-
-	if 0 < nk.NkButtonLabel(ctx, "Run command interactively") {
-		goof.QCI(NodesToStringArray(currentThing[1:]))
-
-	}
-	if 0 < nk.NkButtonLabel(ctx, "Change directory") {
-		path := strings.Join(NodesToStringArray(currentThing[1:]), "/")
-		os.Chdir(path)
-		currentNode = makeStartNode()
-		currentThing = []*Node{currentNode}
-	}
-
-	if len(currentThing) > 1 {
-
-		lastMenu := currentThing[len(currentThing)-2]
-
-		if 0 < nk.NkButtonLabel(ctx, "Go back to "+lastMenu.Name) {
-			if len(currentThing) > 1 {
-				currentNode = currentThing[len(currentThing)-2]
-				currentThing = currentThing[:len(currentThing)-1]
-			}
+func handleKeys(ctx *nk.Context) {
+	keys := ctx.Input().Keyboard()
+	//log.Printf("keys: %v\n", keys)
+	text := keys.GetText()
+	var l *int32
+	l = keys.GetTextLen()
+	ll := *l
+	if ll > 0 {
+		if *(ctx.Input().GetKeyboard().GetTextLen()) > 0 {
+			fmt.Printf("%+v\n", ctx.Input())
+			fmt.Printf("%+s\n", ctx.Input().GetKeyboard().GetText())
 		}
 	}
-	if 0 < nk.NkButtonLabel(ctx, "Exit") {
+	s := fmt.Sprintf("\"%vu%04x\"", `\`, int(text[0]))
+	NormalKey, _ := strconv.Unquote(s)
 
-		app.Stop()
-		os.Exit(0)
+	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyEnter) > 0 {
+
+		if lastEnterDown == false {
+			/*
+					ClearBuffer(ed.StatusBuffer)
+					BuffAppend(ed.StatusBuffer, ed.ActiveBuffer.Data.Text)
+					BuffAppend(ed.StatusBuffer, "\n")
+					ed.StatusBuffer.Formatter.TailBuffer = true
+
+				ClearBuffer(ed.ActiveBuffer)
+			*/
+			SetBuffer(ed.ActiveBuffer, tmt_get_screen(vt))
+			//SetBuffer(ed.StatusBuffer, tmt_get_screen(vt))
+			ClearBuffer(ed.StatusBuffer)
+			go func() { shellIn <- []byte("\n") }()
+			//log.Println("tmt:", tmt_get_screen(vt), "<--")
+		}
+		lastEnterDown = true
+	} else {
+		lastEnterDown = false
+	}
+
+	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyBackspace) > 0 {
+		if lastBackspaceDown == false {
+			dispatch("DELETE-LEFT", ed)
+			go func() { shellIn <- []byte{127} }()
+		}
+		lastBackspaceDown = true
+	} else {
+		lastBackspaceDown = false
+	}
+
+	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyCtrl) > 0 {
+		log.Println("Control")
+		os.Exit(1)
+		if NormalKey == "c" {
+			go func() { shellIn <- []byte{03} }()
+		}
+	}
+	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyPaste) > 0 {
+		text, _ := clipboard.ReadAll()
+		shellIn <- []byte(text)
+	}
+
+	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyLeft) > 0 {
+		dispatch("PREVIOUS-CHARACTER", ed)
+		go func() { shellIn <- []byte("\u001b[D") }()
+	}
+
+	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyRight) > 0 {
+		dispatch("NEXT-CHARACTER", ed)
+		go func() { shellIn <- []byte("\u001b[C") }()
+	}
+
+	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyDown) > 0 {
+		dispatch("NEXT-LINE", ed)
+		go func() { shellIn <- []byte("\u001b[B") }()
+	}
+
+	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyUp) > 0 {
+		dispatch("PREVIOUS-LINE", ed)
+		go func() { shellIn <- []byte("\u001b[A") }()
+	}
+
+	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyTab) > 0 {
+		go func() { shellIn <- []byte("\t") }()
 	}
 }
-
 func drawmenu(ctx *nk.Context, state *State) {
 	nk.NkMenubarBegin(ctx)
 
@@ -207,113 +241,13 @@ func gfxMain(win *glfw.Window, ctx *nk.Context, state *State) {
 	nk.NkWindowSetPosition(ctx, appName, nk.NkVec2(0, 0))
 	nk.NkWindowSetSize(ctx, appName, nk.NkVec2(float32(winWidth), float32(winHeight)))
 
-	keys := ctx.Input().Keyboard()
-	//log.Printf("keys: %v\n", keys)
-
-	text := keys.GetText()
-	var l *int32
-	l = keys.GetTextLen()
-	ll := *l
-	if ll > 0 {
-		if *(ctx.Input().GetKeyboard().GetTextLen()) > 0 {
-			fmt.Printf("%+v\n", ctx.Input())
-			fmt.Printf("%+s\n", ctx.Input().GetKeyboard().GetText())
-		}
-	}
-	s := fmt.Sprintf("\"%vu%04x\"", `\`, int(text[0]))
-	NormalKey, _ := strconv.Unquote(s)
-
-	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyEnter) > 0 {
-
-		if lastEnterDown == false {
-			/*
-					ClearBuffer(ed.StatusBuffer)
-					BuffAppend(ed.StatusBuffer, ed.ActiveBuffer.Data.Text)
-					BuffAppend(ed.StatusBuffer, "\n")
-					ed.StatusBuffer.Formatter.TailBuffer = true
-
-				ClearBuffer(ed.ActiveBuffer)
-			*/
-			SetBuffer(ed.ActiveBuffer, tmt_get_screen(vt))
-			//SetBuffer(ed.StatusBuffer, tmt_get_screen(vt))
-			ClearBuffer(ed.StatusBuffer)
-			go func() { shellIn <- []byte("\n") }()
-			//log.Println("tmt:", tmt_get_screen(vt), "<--")
-		}
-		lastEnterDown = true
-	} else {
-		lastEnterDown = false
-	}
-
-	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyBackspace) > 0 {
-		if lastBackspaceDown == false {
-			dispatch("DELETE-LEFT", ed)
-			go func() { shellIn <- []byte{127} }()
-		}
-		lastBackspaceDown = true
-	} else {
-		lastBackspaceDown = false
-	}
-
-	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyCtrl) > 0 {
-		log.Println("Control")
-		os.Exit(1)
-		if NormalKey == "c" {
-			go func() { shellIn <- []byte{03} }()
-		}
-	}
-	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyPaste) > 0 {
-		text, _ := clipboard.ReadAll()
-		shellIn <- []byte(text)
-	}
-
-	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyLeft) > 0 {
-		dispatch("PREVIOUS-CHARACTER", ed)
-		go func() { shellIn <- []byte("\u001b[D") }()
-	}
-
-	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyRight) > 0 {
-		dispatch("NEXT-CHARACTER", ed)
-		go func() { shellIn <- []byte("\u001b[C") }()
-	}
-
-	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyDown) > 0 {
-		dispatch("NEXT-LINE", ed)
-		go func() { shellIn <- []byte("\u001b[B") }()
-	}
-
-	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyUp) > 0 {
-		dispatch("PREVIOUS-LINE", ed)
-		go func() { shellIn <- []byte("\u001b[A") }()
-	}
-
-	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyTab) > 0 {
-		go func() { shellIn <- []byte("\t") }()
-	}
+	handleKeys(ctx)
 
 	if update > 0 {
 
 		drawmenu(ctx, state)
 
-		nk.NkLayoutRowDynamic(ctx, 20, 3)
-		{
-			nk.NkLabel(ctx, strings.Join(NodesToStringArray(currentThing), " > "), nk.TextLeft)
-			if 0 < nk.NkButtonLabel(ctx, "Undo") {
-				if len(currentThing) > 1 {
-					currentNode = currentThing[len(currentThing)-2]
-					currentThing = currentThing[:len(currentThing)-1]
-				}
-			}
-			if 0 < nk.NkButtonLabel(ctx, "Go Back") {
-				if len(currentThing) > 1 {
-					currentNode = currentThing[len(currentThing)-2]
-				}
-			}
-		}
-
 		QuickFileEditor(ctx)
-
-		nk.NkLayoutRowDynamic(ctx, 200, 1)
 
 	}
 	nk.NkEnd(ctx)
@@ -334,9 +268,6 @@ func QuickFileEditor(ctx *nk.Context) {
 	nk.NkLayoutRowDynamic(ctx, float32(0), 2)
 	{
 
-		//nk.NkLayoutRowStatic(ctx, 100, 100, 3)
-		//nk.NkLayoutRowDynamic(ctx, float32(winHeight), 1)
-		height := 800
 		butts := ctx.Input().Mouse().GetButtons()
 		keys := ctx.Input().Keyboard()
 
@@ -346,27 +277,14 @@ func QuickFileEditor(ctx *nk.Context) {
 		ll := *l
 		if ll > 0 {
 			if *(ctx.Input().GetKeyboard().GetTextLen()) > 0 {
-				fmt.Printf("%+v\n", ctx.Input())
-				//fmt.Printf("%+s\n", ctx.Input().GetKeyboard().GetText())
+				//fmt.Printf("%+v\n", ctx.Input())
 			}
 			s := fmt.Sprintf("\"%vu%04x\"", `\`, int(text[0]))
 			s2, _ := strconv.Unquote(s)
-			//go func() { shellIn <- "ls -lR\n" }()
 			go func() { shellIn <- []byte(fmt.Sprintf("%v", s2)) }()
-			//tmt_process_text(vt, fmt.Sprintf("%v", s2))
-			//stdinQ <- fmt.Sprintf("%v", s2)
-			//log.Println(err)
-			/*newBytes := append(EditBytes[:form.Cursor], []byte(s2)...)
-			newBytes = append(newBytes, EditBytes[form.Cursor:]...)
-			form.Cursor++
-			*/
 			if ed.ActiveBuffer.Formatter.Cursor < 0 {
 				ed.ActiveBuffer.Formatter.Cursor = 0
 			}
-
-			//fmt.Printf("Inserting at %v, length %v\n", ed.ActiveBuffer.Formatter.Cursor, len(ed.ActiveBuffer.Data.Text))
-			//ActiveBufferInsert(ed, fmt.Sprintf("%v", s2))
-
 		}
 		mouseX, mouseY := int32(-1000), int32(-1000)
 
@@ -380,18 +298,16 @@ func QuickFileEditor(ctx *nk.Context) {
 		bounds := nk.NkWidgetBounds(ctx)
 		left := int(*bounds.GetX())
 		top := int(*bounds.GetY())
-		nuHeight := height - top
-		nk.NkLayoutRowDynamic(ctx, float32(nuHeight), 1)
+		nuHeight := 8000
+		nk.NkLayoutRowDynamic(ctx, float32(0), 1)
 		{
-			//if EditBytes != nil {
+
 			if ed != nil {
-				nkwidth := nk.NkWidgetWidth(ctx)
-				width := int(nkwidth)
+				width := int(nk.NkWidgetWidth(ctx))
 
 				pic := make([]uint8, width*nuHeight*4)
 
 				form.Colour = &glim.RGBA{255, 255, 255, 255}
-				//form.Cursor = 20
 				ed.ActiveBuffer.Formatter.Colour = &glim.RGBA{0, 255, 255, 255}
 				ed.ActiveBuffer.Formatter.Outline = false
 				newCursor, _, _ := glim.RenderPara(ed.ActiveBuffer.Formatter,
@@ -406,17 +322,7 @@ func QuickFileEditor(ctx *nk.Context) {
 					}
 				}
 
-				mapTex, _ = nktemplates.RawTexture(glim.Uint8ToBytes(pic),
-					int32(width), int32(nuHeight), mapTex)
-				var err error = nil
-				if err == nil {
-					testim := nk.NkImageId(int32(mapTex.Handle))
-
-					nk.NkImage(ctx, testim)
-					//}
-				} else {
-					log.Println(err)
-				}
+				doImage(ctx, pic, width, nuHeight)
 			}
 		}
 
@@ -427,11 +333,14 @@ func QuickFileEditor(ctx *nk.Context) {
 func doImage(ctx *nk.Context, pic []uint8, width, nuHeight int) {
 	nk.NkLayoutRowDynamic(ctx, float32(nuHeight), 1)
 	{
-		mapTex1, _ = nktemplates.RawTexture(glim.Uint8ToBytes(pic), int32(width), int32(nuHeight), mapTex1)
 		var err error = nil
+		mapTex1, err = nktemplates.RawTexture(glim.Uint8ToBytes(pic), int32(width), int32(nuHeight), mapTex1)
+
 		if err == nil {
 			testim := nk.NkImageId(int32(mapTex1.Handle))
 			nk.NkImage(ctx, testim)
+		} else {
+			log.Println(err)
 		}
 	}
 }
