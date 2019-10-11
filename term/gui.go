@@ -23,30 +23,18 @@ import (
 	//"github.com/donomii/glim"
 )
 
-var DirFiles []string
 var mapTex *nktemplates.Texture
 var mapTex1 *nktemplates.Texture
 var lastEnterDown bool
 var lastBackspaceDown bool
 
 func handleKeys(ctx *nk.Context) {
-	keys := ctx.Input().Keyboard()
-	//log.Printf("keys: %v\n", keys)
-
-	var l *int32
-	l = keys.GetTextLen()
-	ll := *l
-	if ll > 0 {
-		if *(ctx.Input().GetKeyboard().GetTextLen()) > 0 {
-			fmt.Printf("Input: %+v\n", ctx.Input())
-			fmt.Printf("InputText: %+s\n", ctx.Input().GetKeyboard().GetText())
-		}
-	}
 
 	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyBackspace) > 0 {
 		if lastBackspaceDown == false {
 			dispatch("DELETE-LEFT", ed)
 			go func() { shellIn <- []byte{127} }()
+			needsRedraw = true
 		}
 		lastBackspaceDown = true
 	} else {
@@ -55,6 +43,7 @@ func handleKeys(ctx *nk.Context) {
 
 	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyTab) > 0 {
 		go func() { shellIn <- []byte("\t") }()
+		needsRedraw = true
 	}
 }
 func drawmenu(ctx *nk.Context, state *State) {
@@ -78,13 +67,14 @@ func drawmenu(ctx *nk.Context, state *State) {
 	if nk.NkMenuBeginLabel(ctx, "Edit", nk.TextLeft, nk.NkVec2(120, 200)) > 0 {
 		nk.NkLayoutRowDynamic(ctx, 25, 1)
 		if nk.NkMenuItemLabel(ctx, "Paste", nk.TextLeft) > 0 {
-			//dispatch("PASTE-FROM-CLIPBOARD", ed) //Adds it to the local buffer
 			text, _ := clipboard.ReadAll()
 			shellIn <- []byte(text)
+			needsRedraw = true
 		}
 		if nk.NkMenuItemLabel(ctx, "Send Break", nk.TextLeft) > 0 {
 
 			shellIn <- []byte{3}
+			needsRedraw = true
 		}
 		nk.NkMenuEnd(ctx)
 	}
@@ -218,7 +208,7 @@ func QuickFileEditor(ctx *nk.Context) {
 			if *v.GetClicked() > 0 {
 				mouseX, mouseY = ctx.Input().Mouse().Pos()
 
-				log.Println("Click at ", mouseX, mouseY)
+				//log.Println("Click at ", mouseX, mouseY)
 			}
 		}
 		bounds := nk.NkWidgetBounds(ctx)

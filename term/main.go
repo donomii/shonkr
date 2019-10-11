@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bytes"
+	//"bytes"
 	"os"
 
 	//"os"
@@ -35,9 +35,10 @@ import (
 	"github.com/donomii/glim"
 )
 
+var needsRedraw bool
 var form *glim.FormatParams
-
-var autoSync bool
+var lasttime float64
+var shell string
 var ui bool
 var repos [][]string
 var lastSelect string
@@ -74,7 +75,9 @@ func main() {
 	os.Setenv("LINES", "24")
 	os.Setenv("COLUMNS", "80")
 	os.Setenv("PS1", ">")
-	shellIn, shellOut = startShell()
+	flag.StringVar(&shell, "shell", "/bin/bash", "The command shell to run")
+	flag.Parse()
+	shellIn, shellOut = startShell(shell)
 	shellIn <- []byte("ls\n")
 
 	start_tmt()
@@ -88,9 +91,6 @@ func main() {
 	}
 
 	toml.Decode(string(configBytes), &config)
-	flag.BoolVar(&autoSync, "auto-sync", false, "Automatically push then pull on clean repositories")
-	flag.BoolVar(&ui, "ui", false, "Experimental graphical user interface")
-	flag.Parse()
 
 	fmt.Println("File", flag.Arg(0))
 
@@ -106,8 +106,6 @@ func main() {
 
 	//Nuklear
 
-	DirFiles = goof.Ls(".")
-
 	if err := glfw.Init(); err != nil {
 		closer.Fatalln(err)
 	}
@@ -122,15 +120,15 @@ func main() {
 	win.MakeContextCurrent()
 
 	win.SetKeyCallback(func(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
-		log.Printf("Got key %c,%v,%v,%v", key, key, mods, action)
+		//log.Printf("Got key %c,%v,%v,%v", key, key, mods, action)
 
 		if mods == 2 && action == 1 && key != 341 {
 			mask := ^byte(64 + 128)
-			log.Printf("mask: %#b", mask)
+			//log.Printf("mask: %#b", mask)
 			val := byte(key)
-			log.Printf("val: %#b", val)
+			//log.Printf("val: %#b", val)
 			b := mask & val
-			log.Printf("byte: %#b", b)
+			//log.Printf("byte: %#b", b)
 			shellIn <- []byte{b}
 
 		}
@@ -151,19 +149,21 @@ func main() {
 				go func() { shellIn <- []byte("\u001b") }()
 			}
 		}
+		needsRedraw = true
 
 	})
 
 	win.SetCharModsCallback(func(w *glfw.Window, char rune, mods glfw.ModifierKey) {
 
 		text := fmt.Sprintf("%c", char)
-		fmt.Printf("Text: %v\n", text)
+		//fmt.Printf("Text: %v\n", text)
 		shellIn <- []byte(text)
 
+		needsRedraw = true
 	})
 
 	width, height := win.GetSize()
-	log.Printf("glfw: created window %vx%v", width, height)
+	//log.Printf("glfw: created window %vx%v", width, height)
 
 	if err := gl.Init(); err != nil {
 		closer.Fatalln("opengl: init failed:", err)
@@ -193,12 +193,13 @@ func main() {
 
 	go func() {
 		for {
-			log.Println("Waiting for data from stdoutQ")
+			//log.Println("Waiting for data from stdoutQ")
 			data := <-shellOut
-			data = bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1)
+			//data = bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1)
 
 			tmt_process_text(vt, string(data))
 			SetBuffer(ed.ActiveBuffer, tmt_get_screen(vt))
+			needsRedraw = true
 
 		}
 	}()
@@ -207,7 +208,7 @@ func main() {
 
 	LoadFileIfNotLoaded(ed, flag.Arg(0))
 	SetFont(ed.ActiveBuffer, 12)
-
+	needsRedraw = true
 	for {
 		select {
 		case <-exitC:
@@ -223,8 +224,20 @@ func main() {
 			}
 			glfw.PollEvents()
 			winWidth, winHeight = win.GetSize()
-			//log.Printf("glfw: created window %dx%d", width, height)
-			gfxMain(win, ctx, state)
+			if needsRedraw {
+				lasttime = glfw.GetTime()
+				gfxMain(win, ctx, state)
+				needsRedraw = false
+
+			} else {
+				TARGET_FPS := 10.0
+				if glfw.GetTime() < lasttime+1.0/TARGET_FPS {
+					time.Sleep(1 * time.Millisecond)
+				} else {
+					needsRedraw = true
+
+				}
+			}
 		}
 	}
 
