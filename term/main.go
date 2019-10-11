@@ -122,7 +122,7 @@ func main() {
 	win.MakeContextCurrent()
 
 	win.SetKeyCallback(func(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
-		log.Printf("Got key %v,%v,%v", key, mods, action)
+		log.Printf("Got key %c,%v,%v,%v", key, key, mods, action)
 
 		if mods == 2 && action == 1 && key != 341 {
 			mask := ^byte(64 + 128)
@@ -134,7 +134,8 @@ func main() {
 			shellIn <- []byte{b}
 
 		}
-		if mods != 2 {
+
+		if action == 0 && mods == 0 {
 			switch key {
 			case 257:
 				go func() { shellIn <- []byte("\n") }()
@@ -148,9 +149,16 @@ func main() {
 				go func() { shellIn <- []byte("\u001b[D") }()
 			case 256:
 				go func() { shellIn <- []byte("\u001b") }()
-
 			}
 		}
+
+	})
+
+	win.SetCharModsCallback(func(w *glfw.Window, char rune, mods glfw.ModifierKey) {
+
+		text := fmt.Sprintf("%c", char)
+		fmt.Printf("Text: %v\n", text)
+		shellIn <- []byte(text)
 
 	})
 

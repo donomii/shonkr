@@ -4,7 +4,6 @@ package main
 import (
 	//"unsafe"
 	//"io/ioutil"
-	"strconv"
 
 	"github.com/donomii/glim"
 	"github.com/donomii/nuklear-templates"
@@ -33,18 +32,16 @@ var lastBackspaceDown bool
 func handleKeys(ctx *nk.Context) {
 	keys := ctx.Input().Keyboard()
 	//log.Printf("keys: %v\n", keys)
-	text := keys.GetText()
+
 	var l *int32
 	l = keys.GetTextLen()
 	ll := *l
 	if ll > 0 {
 		if *(ctx.Input().GetKeyboard().GetTextLen()) > 0 {
-			fmt.Printf("%+v\n", ctx.Input())
-			fmt.Printf("%+s\n", ctx.Input().GetKeyboard().GetText())
+			fmt.Printf("Input: %+v\n", ctx.Input())
+			fmt.Printf("InputText: %+s\n", ctx.Input().GetKeyboard().GetText())
 		}
 	}
-	s := fmt.Sprintf("\"%vu%04x\"", `\`, int(text[0]))
-	NormalKey, _ := strconv.Unquote(s)
 
 	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyBackspace) > 0 {
 		if lastBackspaceDown == false {
@@ -54,28 +51,6 @@ func handleKeys(ctx *nk.Context) {
 		lastBackspaceDown = true
 	} else {
 		lastBackspaceDown = false
-	}
-
-	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyCtrl) > 0 {
-		log.Println("Control")
-		os.Exit(1)
-		if NormalKey == "c" {
-			go func() { shellIn <- []byte{03} }()
-		}
-	}
-	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyPaste) > 0 {
-		text, _ := clipboard.ReadAll()
-		shellIn <- []byte(text)
-	}
-
-	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyLeft) > 0 {
-		dispatch("PREVIOUS-CHARACTER", ed)
-
-	}
-
-	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyRight) > 0 {
-		dispatch("NEXT-CHARACTER", ed)
-
 	}
 
 	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyTab) > 0 {
@@ -236,23 +211,7 @@ func QuickFileEditor(ctx *nk.Context) {
 	{
 
 		butts := ctx.Input().Mouse().GetButtons()
-		keys := ctx.Input().Keyboard()
 
-		text := keys.GetText()
-		var l *int32
-		l = keys.GetTextLen()
-		ll := *l
-		if ll > 0 {
-			if *(ctx.Input().GetKeyboard().GetTextLen()) > 0 {
-				//fmt.Printf("%+v\n", ctx.Input())
-			}
-			s := fmt.Sprintf("\"%vu%04x\"", `\`, int(text[0]))
-			s2, _ := strconv.Unquote(s)
-			go func() { shellIn <- []byte(fmt.Sprintf("%v", s2)) }()
-			if ed.ActiveBuffer.Formatter.Cursor < 0 {
-				ed.ActiveBuffer.Formatter.Cursor = 0
-			}
-		}
 		mouseX, mouseY := int32(-1000), int32(-1000)
 
 		for _, v := range butts {
