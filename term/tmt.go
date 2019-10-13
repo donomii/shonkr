@@ -13,7 +13,6 @@ func start_tmt() {
 
 	vt = C.terminal_open()
 	C.tmt_resize(vt, 24, 80)
-	//C.tmt_write(vt, C.CString("\033[1mWelcome to Watterm\033[0m\n"), 0)
 
 }
 func tmt_process_text(vt *C.struct_TMT, text string) {
