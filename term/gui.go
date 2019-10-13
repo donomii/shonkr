@@ -2,9 +2,6 @@
 package main
 
 import (
-	//"unsafe"
-	//"io/ioutil"
-
 	"github.com/donomii/glim"
 	"github.com/donomii/nuklear-templates"
 
@@ -12,15 +9,12 @@ import (
 	"github.com/go-gl/glfw/v3.2/glfw"
 	"github.com/golang-ui/nuklear/nk"
 
-	//"text/scanner"
-
 	"fmt"
 
 	"github.com/atotto/clipboard"
 
 	"log"
 	"os"
-	//"github.com/donomii/glim"
 )
 
 var mapTex *nktemplates.Texture
@@ -28,24 +22,6 @@ var mapTex1 *nktemplates.Texture
 var lastEnterDown bool
 var lastBackspaceDown bool
 
-func handleKeys(ctx *nk.Context) {
-
-	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyBackspace) > 0 {
-		if lastBackspaceDown == false {
-			dispatch("DELETE-LEFT", ed)
-			go func() { shellIn <- []byte{127} }()
-			needsRedraw = true
-		}
-		lastBackspaceDown = true
-	} else {
-		lastBackspaceDown = false
-	}
-
-	if nk.NkInputIsKeyPressed(ctx.Input(), nk.KeyTab) > 0 {
-		go func() { shellIn <- []byte("\t") }()
-		needsRedraw = true
-	}
-}
 func drawmenu(ctx *nk.Context, state *State) {
 	nk.NkMenubarBegin(ctx)
 
@@ -72,15 +48,12 @@ func drawmenu(ctx *nk.Context, state *State) {
 			needsRedraw = true
 		}
 		if nk.NkMenuItemLabel(ctx, "Send Break", nk.TextLeft) > 0 {
-
 			shellIn <- []byte{3}
 			needsRedraw = true
 		}
 		nk.NkMenuEnd(ctx)
 	}
 	if nk.NkMenuBeginLabel(ctx, "Fonts", nk.TextLeft, nk.NkVec2(120, 200)) > 0 {
-		//static size_t prog = 40;
-		//static int slider = 10;
 		check := int32(1)
 		nk.NkLayoutRowDynamic(ctx, 25, 1)
 		if nk.NkMenuItemLabel(ctx, "Text direction", nk.TextLeft) > 0 {
@@ -110,8 +83,6 @@ func drawmenu(ctx *nk.Context, state *State) {
 	}
 
 	if nk.NkMenuBeginLabel(ctx, "Buffers", nk.TextLeft, nk.NkVec2(120, 200)) > 0 {
-		//static size_t prog = 40;
-		//static int slider = 10;
 		check := int32(1)
 		nk.NkLayoutRowDynamic(ctx, 25, 1)
 
@@ -173,8 +144,6 @@ func gfxMain(win *glfw.Window, ctx *nk.Context, state *State) {
 	nk.NkWindowSetPosition(ctx, appName, nk.NkVec2(0, 0))
 	nk.NkWindowSetSize(ctx, appName, nk.NkVec2(float32(winWidth), float32(winHeight)))
 
-	handleKeys(ctx)
-
 	if update > 0 {
 
 		drawmenu(ctx, state)
@@ -189,8 +158,8 @@ func gfxMain(win *glfw.Window, ctx *nk.Context, state *State) {
 	nk.NkColorFv(bg, state.bgColor)
 	width, height := win.GetSize()
 	gl.Viewport(0, 0, int32(width), int32(height))
-	gl.Clear(gl.COLOR_BUFFER_BIT)
 	gl.ClearColor(bg[0], bg[1], bg[2], bg[3])
+	gl.Clear(gl.COLOR_BUFFER_BIT)
 	nk.NkPlatformRender(nk.AntiAliasingOn, maxVertexBuffer, maxElementBuffer)
 	win.SwapBuffers()
 }
@@ -237,13 +206,10 @@ func QuickFileEditor(ctx *nk.Context) {
 						ed.ActiveBuffer.Formatter.Cursor = newCursor
 					}
 				}
-
 				doImage(ctx, pic, width, nuHeight)
 			}
 		}
-
 	}
-
 }
 
 func doImage(ctx *nk.Context, pic []uint8, width, nuHeight int) {
