@@ -504,11 +504,14 @@ tmt_reset(TMT *vt)
 
 void callback(tmt_msg_t m, TMT *vt, const void *a, void *p) {
    const TMTSCREEN *s = tmt_screen(vt);
-   const TMTPOINT *c = tmt_cursor(vt);
+   //const TMTPOINT *c = tmt_cursor(vt);
 
     switch (m){
+	    case TMT_MSG_CURSOR:
+		    //I dunno
+		    break;
         case TMT_MSG_BELL:
-            printf("bing!\n");
+            //printf("bing!\n");
             break;
 
         case TMT_MSG_UPDATE:
@@ -523,11 +526,11 @@ void callback(tmt_msg_t m, TMT *vt, const void *a, void *p) {
             break;
 
         case TMT_MSG_ANSWER:
-            printf("terminal answered %s\n", (const char *)a);
+            //printf("terminal answered %s\n", (const char *)a);
             break;
 
         case TMT_MSG_MOVED:
-            printf("cursor is now at %zd,%zd\n", c->r, c->c);
+            //printf("cursor is now at %d,%d\n", c->r, c->c);
             break;
     }
 }
@@ -541,10 +544,6 @@ TMT * terminal_open() {
     }
 
 
-char *
-terminal_screen(const TMT *vt)
-{
-}
 
 wchar_t terminal_char(TMT *vt, int x, int y) {
      TMTLINE * line = vt->screen.lines[y];
