@@ -23,6 +23,7 @@ import (
 	//"github.com/donomii/glim"
 )
 
+var foreColour, backColour *glim.RGBA
 var mapTex *nktemplates.Texture
 var mapTex1 *nktemplates.Texture
 var lastEnterDown bool
@@ -223,8 +224,8 @@ func QuickFileEditor(ctx *nk.Context) {
 
 				pic := make([]uint8, width*nuHeight*4)
 
-				form.Colour = &glim.RGBA{255, 255, 255, 255}
-				ed.ActiveBuffer.Formatter.Colour = &glim.RGBA{0, 0, 0, 255}
+				form.Colour = foreColour
+				ed.ActiveBuffer.Formatter.Colour = backColour
 				ed.ActiveBuffer.Formatter.Outline = false
 				newCursor, _, _ := glim.RenderPara(ed.ActiveBuffer.Formatter,
 					0, 0, 0, 0,

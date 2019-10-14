@@ -80,6 +80,9 @@ func main() {
 	shellIn, shellOut = startShell(shell)
 	shellIn <- []byte("ls\n")
 
+	foreColour = &glim.RGBA{255, 255, 255, 255}
+	backColour = &glim.RGBA{0, 0, 0, 255}
+
 	start_tmt()
 	confFile = goof.ConfigFilePath(".shonkr.json")
 	log.Println("Loading config from:", confFile)
