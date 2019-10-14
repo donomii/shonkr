@@ -68,7 +68,7 @@ func AddActiveBuffer(gc *GlobalConfig, text string, fileName string) {
 
 func FindByFileName(gc *GlobalConfig, fileName string) (int, *Buffer) {
 	for i, v := range gc.BufferList {
-		fmt.Println("Comparing ", fileName, v.Data.FileName)
+		//fmt.Println("Comparing ", fileName, v.Data.FileName)
 		if v.Data.FileName == fileName {
 			return i, v
 		}
@@ -236,14 +236,14 @@ func LoadFileIfNotLoaded(gc *GlobalConfig, fileName string) {
 	buff := NewBuffer()
 	_, fbuff := FindByFileName(gc, fileName)
 	if fbuff == nil {
-		fmt.Printf("Loading file from disk: %v\n", fileName)
+		//fmt.Printf("Loading file from disk: %v\n", fileName)
 		gc.ActiveBuffer = buff
 		gc.BufferList = append(gc.BufferList, buff)
 		gc.ActiveBuffer.Data.Text = string(data)
 		gc.ActiveBuffer.Data.FileName = fileName
 		gc.ActiveBuffer.Formatter.Cursor = len(gc.ActiveBuffer.Data.Text)
 	} else {
-		fmt.Printf("Reusing buffer for %v\n", fileName)
+		//fmt.Printf("Reusing buffer for %v\n", fileName)
 		gc.ActiveBuffer = fbuff
 	}
 

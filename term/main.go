@@ -1,19 +1,12 @@
 package main
 
 import (
-	"bytes"
+	//"bytes"
 	"os"
 
-	//"os"
-
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"runtime"
-
-	"github.com/donomii/goof"
-
-	"github.com/BurntSushi/toml"
 
 	"golang.org/x/image/font/gofont/goregular"
 
@@ -35,18 +28,20 @@ import (
 	"github.com/donomii/glim"
 )
 
+var shell string
+var active bool
 var myMenu Menu
 
 type Menu []string
 
 var form *glim.FormatParams
-
+var lasttime float64
 var autoSync bool
 var ui bool
 var repos [][]string
 var lastSelect string
 var workerChan chan string
-var needsRedraw bool = true
+var needsRedraw bool
 
 type Option uint8
 
@@ -74,41 +69,40 @@ func init() {
 	runtime.LockOSThread()
 }
 
+var pic []uint8
+var picBytes []byte
+
 func main() {
+	runtime.LockOSThread()
+
+	pic = make([]uint8, 3000*3000*4)
+	picBytes = make([]byte, 3000*3000*4)
+	var doLogs bool
+	flag.BoolVar(&doLogs, "debug", false, "Display logging information")
+	flag.StringVar(&shell, "shell", "/bin/bash", "The command shell to run")
+	flag.Parse()
+	if !doLogs {
+		log.SetFlags(0)
+		log.SetOutput(ioutil.Discard)
+	}
+
+	start_tmt()
+	//time.Sleep(1 * time.Second)
 	os.Setenv("TERM", "dumb")
 	os.Setenv("LINES", "24")
 	os.Setenv("COLUMNS", "80")
 	os.Setenv("PS1", ">")
-	shellIn, shellOut = startShell("/bin/bash")
-	shellIn <- []byte("ls\n")
+
+	shellIn, shellOut = startShell(shell)
 
 	foreColour = &glim.RGBA{255, 255, 255, 255}
 	backColour = &glim.RGBA{0, 0, 0, 255}
 
-	start_tmt()
-	confFile = goof.ConfigFilePath(".shonkr.json")
-	log.Println("Loading config from:", confFile)
-	configBytes, conferr := ioutil.ReadFile(confFile)
-	if conferr != nil {
-		log.Println("Writing fresh config to:", confFile)
-		ioutil.WriteFile(confFile, []byte("test"), 0644)
-		configBytes, conferr = ioutil.ReadFile(confFile)
-	}
-
-	toml.Decode(string(configBytes), &config)
-	flag.BoolVar(&autoSync, "auto-sync", false, "Automatically push then pull on clean repositories")
-	flag.BoolVar(&ui, "ui", false, "Experimental graphical user interface")
-	flag.Parse()
-
 	ed = NewEditor()
 	//Create a text formatter.  This controls the appearance of the text, e.g. colour, size, layout
 	form = glim.NewFormatter()
+	ed.ActiveBuffer.Formatter = form
 	SetFont(ed.ActiveBuffer, 12)
-
-	jsonerr := json.Unmarshal([]byte(menuData), &myMenu)
-	if jsonerr != nil {
-		fmt.Println(jsonerr)
-	}
 
 	//Nuklear
 
@@ -126,6 +120,7 @@ func main() {
 	win.MakeContextCurrent()
 
 	win.SetKeyCallback(func(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
+
 		log.Printf("Got key %c,%v,%v,%v", key, key, mods, action)
 
 		if mods == 2 && action == 1 && key != 341 {
@@ -153,8 +148,13 @@ func main() {
 				go func() { shellIn <- []byte("\u001b[D") }()
 			case 256:
 				go func() { shellIn <- []byte("\u001b") }()
+			case 259:
+				go func() { shellIn <- []byte{127} }()
+			case 258:
+				go func() { shellIn <- []byte("\t") }()
 			}
 		}
+
 	})
 
 	win.SetCharModsCallback(func(w *glfw.Window, char rune, mods glfw.ModifierKey) {
@@ -165,13 +165,9 @@ func main() {
 
 	})
 
-	width, height := win.GetSize()
-	log.Printf("glfw: created window %vx%v", width, height)
-
 	if err := gl.Init(); err != nil {
 		closer.Fatalln("opengl: init failed:", err)
 	}
-	gl.Viewport(0, 0, int32(width-1), int32(height-1))
 
 	ctx := nk.NkPlatformInit(win, nk.PlatformInstallCallbacks)
 
@@ -196,22 +192,28 @@ func main() {
 
 	go func() {
 		for {
-			log.Println("Waiting for data from stdoutQ")
-			data := <-shellOut
-			data = bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1)
+			if active {
+				log.Println("Waiting for data from stdoutQ")
+				data := <-shellOut
+				log.Println("Got data", string(data))
+				//data = bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1)
 
-			tmt_process_text(vt, string(data))
-			SetBuffer(ed.ActiveBuffer, tmt_get_screen(vt))
-
+				tmt_process_text(vt, string(data))
+				SetBuffer(ed.ActiveBuffer, tmt_get_screen(vt))
+				needsRedraw = true
+			}
 		}
 	}()
 
 	fpsTicker := time.NewTicker(time.Second / 30)
 
-	LoadFileIfNotLoaded(ed, flag.Arg(0))
+	//LoadFileIfNotLoaded(ed, flag.Arg(0))
 	SetFont(ed.ActiveBuffer, 12)
+	log.Println("Starting main loop")
+	needsRedraw = true
 
 	for {
+		log.Println("Mainloop!")
 		select {
 		case <-exitC:
 			nk.NkPlatformShutdown()
@@ -226,8 +228,23 @@ func main() {
 			}
 			glfw.PollEvents()
 			winWidth, winHeight = win.GetSize()
-			//log.Printf("glfw: created window %dx%d", width, height)
-			gfxMain(win, ctx, state)
+			if needsRedraw {
+				lasttime = glfw.GetTime()
+				log.Println("Redraw!")
+				gfxMain(win, ctx, state)
+				needsRedraw = false
+				log.Println("Setting active to true")
+				active = true
+
+			} else {
+				TARGET_FPS := 10.0
+				if glfw.GetTime() < lasttime+1.0/TARGET_FPS {
+					time.Sleep(10 * time.Millisecond)
+				} else {
+					needsRedraw = true
+				}
+			}
+
 		}
 	}
 
