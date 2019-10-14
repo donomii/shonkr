@@ -12,8 +12,6 @@ import (
 var currentNode *Node
 var currentThing []*Node
 
-type Menu []string
-
 type Node struct {
 	Name     string
 	SubNodes []*Node
@@ -48,8 +46,6 @@ var menuData = `
 "!!git commit",
 "!ls -gGh"
 ]`
-
-var myMenu Menu
 
 func NodesToStringArray(ns []*Node) []string {
 	var out []string
