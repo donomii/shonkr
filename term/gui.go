@@ -214,7 +214,7 @@ func QuickFileEditor(ctx *nk.Context) {
 		bounds := nk.NkWidgetBounds(ctx)
 		left := int(*bounds.GetX())
 		top := int(*bounds.GetY())
-		nuHeight := 8000
+		nuHeight := 800
 		nk.NkLayoutRowDynamic(ctx, float32(0), 1)
 		{
 
