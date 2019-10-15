@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"fmt"
-	"io/ioutil"
+	//"io/ioutil"
 	"runtime"
 
 	"golang.org/x/image/font/gofont/goregular"
@@ -23,7 +23,7 @@ import (
 
 	"flag"
 
-	"log"
+	//"log"
 
 	"github.com/donomii/glim"
 )
@@ -78,12 +78,12 @@ func main() {
 	pic = make([]uint8, 3000*3000*4)
 	picBytes = make([]byte, 3000*3000*4)
 	var doLogs bool
-	flag.BoolVar(&doLogs, "debug", false, "Display logging information")
+	flag.BoolVar(&doLogs, "debug", true, "Display logging information")
 	flag.StringVar(&shell, "shell", "/bin/bash", "The command shell to run")
 	flag.Parse()
 	if !doLogs {
-		log.SetFlags(0)
-		log.SetOutput(ioutil.Discard)
+		//log.SetFlags(0)
+		//log.SetOutput(ioutil.Discard)
 	}
 
 	start_tmt()
@@ -121,15 +121,15 @@ func main() {
 
 	win.SetKeyCallback(func(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
 
-		log.Printf("Got key %c,%v,%v,%v", key, key, mods, action)
+		//log.Printf("Got key %c,%v,%v,%v", key, key, mods, action)
 
 		if mods == 2 && action == 1 && key != 341 {
 			mask := ^byte(64 + 128)
-			log.Printf("mask: %#b", mask)
+			//log.Printf("mask: %#b", mask)
 			val := byte(key)
-			log.Printf("val: %#b", val)
+			//log.Printf("val: %#b", val)
 			b := mask & val
-			log.Printf("byte: %#b", b)
+			//log.Printf("byte: %#b", b)
 			shellIn <- []byte{b}
 
 		}
@@ -193,9 +193,9 @@ func main() {
 	go func() {
 		for {
 			if active {
-				log.Println("Waiting for data from stdoutQ")
+				//log.Println("Waiting for data from stdoutQ")
 				data := <-shellOut
-				log.Println("Got data", string(data))
+				//log.Println("Got data", string(data))
 				if runtime.GOOS == "windows" {
 					data = bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1)
 				}
@@ -210,12 +210,12 @@ func main() {
 
 	//LoadFileIfNotLoaded(ed, flag.Arg(0))
 	SetFont(ed.ActiveBuffer, 12)
-	log.Println("Starting main loop")
+	//log.Println("Starting main loop")
 	needsRedraw = true
 
 	for {
-		log.Println("Mainloop!")
 		select {
+
 		case <-exitC:
 			nk.NkPlatformShutdown()
 			glfw.Terminate()
@@ -231,10 +231,10 @@ func main() {
 			winWidth, winHeight = win.GetSize()
 			if needsRedraw {
 				lasttime = glfw.GetTime()
-				log.Println("Redraw!")
+
 				gfxMain(win, ctx, state)
 				needsRedraw = false
-				log.Println("Setting active to true")
+
 				active = true
 
 			} else {

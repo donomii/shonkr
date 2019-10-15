@@ -19,6 +19,10 @@ func tmt_process_text(vt *C.struct_TMT, text string) {
 	C.tmt_write(vt, C.CString(text), 0)
 	needsRedraw = true
 }
+
+func tmt_resize(width, height uint) {
+	C.tmt_resize(vt, C.ulong(height), C.ulong(width))
+}
 func tmt_get_screen(vt *C.struct_TMT) string {
 	var out string
 	scr := C.tmt_screen(vt)
