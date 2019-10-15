@@ -1,7 +1,7 @@
 package main
 
 import (
-	//"bytes"
+	"bytes"
 	"os"
 
 	"fmt"
@@ -196,8 +196,9 @@ func main() {
 				log.Println("Waiting for data from stdoutQ")
 				data := <-shellOut
 				log.Println("Got data", string(data))
-				//data = bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1)
-
+				if runtime.GOOS == "windows" {
+					data = bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1)
+				}
 				tmt_process_text(vt, string(data))
 				SetBuffer(ed.ActiveBuffer, tmt_get_screen(vt))
 				needsRedraw = true
