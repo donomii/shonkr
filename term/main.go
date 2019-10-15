@@ -160,7 +160,7 @@ func main() {
 	win.SetCharModsCallback(func(w *glfw.Window, char rune, mods glfw.ModifierKey) {
 
 		text := fmt.Sprintf("%c", char)
-		fmt.Printf("Text: %v\n", text)
+		//fmt.Printf("Text: %v\n", text)
 		shellIn <- []byte(text)
 
 	})
