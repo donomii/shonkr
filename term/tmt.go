@@ -10,11 +10,10 @@ import (
 )
 
 func start_tmt() {
-
 	vt = C.terminal_open()
 	C.tmt_resize(vt, 24, 80)
-
 }
+
 func tmt_process_text(vt *C.struct_TMT, text string) {
 	C.tmt_write(vt, C.CString(text), 0)
 	needsRedraw = true
