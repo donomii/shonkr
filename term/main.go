@@ -23,7 +23,7 @@ import (
 
 	"flag"
 
-	//"log"
+	"log"
 
 	"github.com/donomii/glim"
 )
@@ -121,7 +121,7 @@ func main() {
 
 	win.SetKeyCallback(func(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
 
-		//log.Printf("Got key %c,%v,%v,%v", key, key, mods, action)
+		log.Printf("Got key %c,%v,%v,%v", key, key, mods, action)
 
 		if mods == 2 && action == 1 && key != 341 {
 			mask := ^byte(64 + 128)
@@ -142,9 +142,9 @@ func main() {
 				go func() { shellIn <- []byte("\u001b[A") }()
 			case 264:
 				go func() { shellIn <- []byte("\u001b[B") }()
-			case 263:
-				go func() { shellIn <- []byte("\u001b[C") }()
 			case 262:
+				go func() { shellIn <- []byte("\u001b[C") }()
+			case 263:
 				go func() { shellIn <- []byte("\u001b[D") }()
 			case 256:
 				go func() { shellIn <- []byte("\u001b") }()

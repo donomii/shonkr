@@ -26,11 +26,14 @@ var lastBackspaceDown bool
 func drawmenu(ctx *nk.Context, state *State) {
 	nk.NkMenubarBegin(ctx)
 
+	menuItemWidth := float32(120)
+	menuItemHeight := float32(200)
+	barWidth := float32(95)
 	/* menu #1 */
-	nk.NkLayoutRowBegin(ctx, nk.Static, 25, 5)
-	nk.NkLayoutRowPush(ctx, 45)
+	nk.NkLayoutRowBegin(ctx, nk.Static, 25, 10)
+	nk.NkLayoutRowPush(ctx, barWidth)
 
-	if nk.NkMenuBeginLabel(ctx, "File", nk.TextLeft, nk.NkVec2(120, 200)) > 0 {
+	if nk.NkMenuBeginLabel(ctx, "File", nk.TextLeft, nk.NkVec2(menuItemWidth, menuItemHeight)) > 0 {
 		nk.NkLayoutRowDynamic(ctx, 25, 1)
 		if nk.NkMenuItemLabel(ctx, "Save", nk.TextLeft) > 0 {
 			dispatch("SAVE-FILE", ed)
@@ -41,7 +44,7 @@ func drawmenu(ctx *nk.Context, state *State) {
 		nk.NkMenuEnd(ctx)
 	}
 
-	if nk.NkMenuBeginLabel(ctx, "Edit", nk.TextLeft, nk.NkVec2(120, 200)) > 0 {
+	if nk.NkMenuBeginLabel(ctx, "Edit", nk.TextLeft, nk.NkVec2(menuItemWidth, menuItemHeight)) > 0 {
 		nk.NkLayoutRowDynamic(ctx, 25, 1)
 		if nk.NkMenuItemLabel(ctx, "Paste", nk.TextLeft) > 0 {
 			text, _ := clipboard.ReadAll()
@@ -54,7 +57,7 @@ func drawmenu(ctx *nk.Context, state *State) {
 		}
 		nk.NkMenuEnd(ctx)
 	}
-	if nk.NkMenuBeginLabel(ctx, "Fonts", nk.TextLeft, nk.NkVec2(120, 200)) > 0 {
+	if nk.NkMenuBeginLabel(ctx, "Fonts", nk.TextLeft, nk.NkVec2(menuItemWidth, menuItemHeight)) > 0 {
 		check := int32(1)
 		nk.NkLayoutRowDynamic(ctx, 25, 1)
 		if nk.NkMenuItemLabel(ctx, "Text direction", nk.TextLeft) > 0 {
@@ -83,7 +86,7 @@ func drawmenu(ctx *nk.Context, state *State) {
 		nk.NkMenuEnd(ctx)
 	}
 
-	if nk.NkMenuBeginLabel(ctx, "Colour Scheme", nk.TextLeft, nk.NkVec2(120, 200)) > 0 {
+	if nk.NkMenuBeginLabel(ctx, "Colours", nk.TextLeft, nk.NkVec2(menuItemWidth, menuItemHeight)) > 0 {
 		nk.NkLayoutRowDynamic(ctx, 25, 1)
 		if nk.NkMenuItemLabel(ctx, "White on Black", nk.TextLeft) > 0 {
 			backColour = &glim.RGBA{255, 255, 255, 255}
@@ -96,7 +99,18 @@ func drawmenu(ctx *nk.Context, state *State) {
 		nk.NkMenuEnd(ctx)
 	}
 
-	if nk.NkMenuBeginLabel(ctx, "Buffers", nk.TextLeft, nk.NkVec2(120, 200)) > 0 {
+	if nk.NkMenuBeginLabel(ctx, "Commands", nk.TextLeft, nk.NkVec2(menuItemWidth, menuItemHeight)) > 0 {
+		nk.NkLayoutRowDynamic(ctx, 25, 1)
+		if nk.NkMenuItemLabel(ctx, "Find and exec", nk.TextLeft) > 0 {
+			 shellIn <- []byte("find . -exec grep -s searchterm {} /dev/null \\;") 
+		}
+		if nk.NkMenuItemLabel(ctx, "Recursive replace", nk.TextLeft) > 0 {
+	 		shellIn <- []byte("find . -type f -name \"*.txt\" -exec sed -i'' -e 's/foo/bar/g' {} +") 
+		}
+		nk.NkMenuEnd(ctx)
+	}
+
+	if nk.NkMenuBeginLabel(ctx, "Buffers", nk.TextLeft, nk.NkVec2(menuItemWidth, menuItemHeight)) > 0 {
 		check := int32(1)
 		nk.NkLayoutRowDynamic(ctx, 25, 1)
 
