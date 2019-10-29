@@ -32,6 +32,7 @@
 #include <stddef.h>
 #include <wchar.h>
 
+
 /**** INVALID WIDE CHARACTER */
 #ifndef TMT_INVALID_CHAR
 #define TMT_INVALID_CHAR ((wchar_t)0xfffd)

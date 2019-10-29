@@ -102,10 +102,10 @@ func drawmenu(ctx *nk.Context, state *State) {
 	if nk.NkMenuBeginLabel(ctx, "Commands", nk.TextLeft, nk.NkVec2(menuItemWidth, menuItemHeight)) > 0 {
 		nk.NkLayoutRowDynamic(ctx, 25, 1)
 		if nk.NkMenuItemLabel(ctx, "Find and exec", nk.TextLeft) > 0 {
-			 shellIn <- []byte("find . -exec grep -s searchterm {} /dev/null \\;") 
+			shellIn <- []byte("find . -exec grep -s searchterm {} /dev/null \\;")
 		}
 		if nk.NkMenuItemLabel(ctx, "Recursive replace", nk.TextLeft) > 0 {
-	 		shellIn <- []byte("find . -type f -name \"*.txt\" -exec sed -i'' -e 's/foo/bar/g' {} +") 
+			shellIn <- []byte("find . -type f -name \"*.txt\" -exec sed -i'' -e 's/foo/bar/g' {} +")
 		}
 		nk.NkMenuEnd(ctx)
 	}
@@ -136,10 +136,6 @@ func drawmenu(ctx *nk.Context, state *State) {
 			}
 		}
 
-		//if (nk.NkMenuItemLabel(ctx, "About", NK_TEXT_LEFT))
-		//    show_app_about = nk_true;
-		//			nk.NkProgress(ctx, &prog, 100, nk.Modifiable)
-		//			nk.NkSliderInt(ctx, 0, &slider, 16, 1)
 		nk.NkCheckboxLabel(ctx, "check", &check)
 		nk.NkMenuEnd(ctx)
 	}
@@ -149,9 +145,9 @@ func drawmenu(ctx *nk.Context, state *State) {
 
 func gfxMain(win *glfw.Window, ctx *nk.Context, state *State) {
 
-	//log.Println("Starting gfx")
+	log.Println("Starting gfx")
 	width, height := win.GetSize()
-	//log.Printf("glfw: window %vx%v", width, height)
+	log.Printf("glfw: window %vx%v", width, height)
 	gl.Viewport(0, 0, int32(width-1), int32(height-1))
 	appName := "Shonkr"
 
@@ -178,14 +174,14 @@ func gfxMain(win *glfw.Window, ctx *nk.Context, state *State) {
 	nk.NkWindowSetSize(ctx, appName, nk.NkVec2(float32(winWidth), float32(winHeight)))
 
 	if update > 0 {
-		//log.Println("Draw menu")
+		log.Println("Draw menu")
 		drawmenu(ctx, state)
-		//log.Println("Draw editor")
+		log.Println("Draw editor")
 		QuickFileEditor(ctx)
 
 	}
 	nk.NkEnd(ctx)
-	//log.Println("update complete")
+	log.Println("update complete")
 	// Render
 	bg := make([]float32, 4)
 	nk.NkColorFv(bg, state.bgColor)
@@ -196,7 +192,7 @@ func gfxMain(win *glfw.Window, ctx *nk.Context, state *State) {
 	//gl.ClearColor(0.0, 0.0, 0.0, 0.0) // Everything crashes if you move htis
 	nk.NkPlatformRender(nk.AntiAliasingOn, maxVertexBuffer, maxElementBuffer)
 	win.SwapBuffers()
-	//log.Println("Finish gfx")
+	log.Println("Finished gfx")
 }
 
 func QuickFileEditor(ctx *nk.Context) {
@@ -227,26 +223,25 @@ func QuickFileEditor(ctx *nk.Context) {
 		left := int(*bounds.GetX())
 		top := int(*bounds.GetY())
 		nuHeight := 800
-		//log.Println("Starting row draw")
+		log.Println("Starting row draw")
 		nk.NkLayoutRowDynamic(ctx, float32(0), 1)
 		{
 
 			if ed != nil {
-				//log.Println("Starting editor draw")
+				log.Println("Starting editor draw")
 				width := int(nk.NkWidgetWidth(ctx))
 
 				size := width * nuHeight * 4
-				//log.Println("Allocating", size, "bytes(", width, "x", nuHeight, ")")
+				log.Println("Clearing", size, "bytes(", width, "x", nuHeight, ")")
 				for i := 0; i < size; i = i + 1 {
 					pic[i] = ((*backColour)[0])
 				}
-				//log.Println("Here")
 
 				form = ed.ActiveBuffer.Formatter
 				form.Colour = foreColour
 				form.Colour = backColour
 				form.Outline = true
-				//log.Println("Draw render paragraph")
+				log.Println("Render paragraph")
 				mouseX := 10
 				mouseY := 10
 				glim.RenderPara(ed.ActiveBuffer.Formatter,
@@ -254,28 +249,28 @@ func QuickFileEditor(ctx *nk.Context) {
 					width, nuHeight, width, nuHeight,
 					int(mouseX)-left, int(mouseY)-top, pic, ed.ActiveBuffer.Data.Text,
 					false, true, true)
-				//log.Println("Finished render paragraph")
-				//log.Println("Render image (", len(pic), " ", width, " ", nuHeight)
+				log.Println("Finished render paragraph")
+				log.Println("Render image (", len(pic), " ", width, " ", nuHeight)
 				doImage(ctx, pic, width, nuHeight)
 			}
 		}
 	}
 
-	//log.Println("Finish qfe")
+	log.Println("Finish terminal display")
 }
 
 func doImage(ctx *nk.Context, pic []uint8, width, nuHeight int) {
-	//log.Println("Rendering image")
+	log.Println("Rendering image")
 	nk.NkLayoutRowDynamic(ctx, float32(nuHeight), 1)
 	{
 		var err error = nil
-		//log.Println("calling rawtex")
+		log.Println("calling rawtex")
 
 		mapTex1, err = nktemplates.RawTexture(glim.Uint8ToBytes(pic, picBytes), int32(width), int32(nuHeight), mapTex1)
 
 		if err == nil {
 			testim := nk.NkImageId(int32(mapTex1.Handle))
-			//log.Println("nk image")
+			log.Println("nk image")
 			nk.NkImage(ctx, testim)
 		} else {
 			log.Println(err)

@@ -31,7 +31,7 @@
 #include <string.h>
 #include "tmt.h"
 
-#define size_t long
+
 #define BUF_MAX 100
 #define PAR_MAX 8
 #define TAB 8

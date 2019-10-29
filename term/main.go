@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"fmt"
-	//"io/ioutil"
+	"io/ioutil"
 	"runtime"
 
 	"golang.org/x/image/font/gofont/goregular"
@@ -78,12 +78,12 @@ func main() {
 	pic = make([]uint8, 3000*3000*4)
 	picBytes = make([]byte, 3000*3000*4)
 	var doLogs bool
-	flag.BoolVar(&doLogs, "debug", true, "Display logging information")
+	flag.BoolVar(&doLogs, "debug", false, "Display logging information")
 	flag.StringVar(&shell, "shell", "/bin/bash", "The command shell to run")
 	flag.Parse()
 	if !doLogs {
-		//log.SetFlags(0)
-		//log.SetOutput(ioutil.Discard)
+		log.SetFlags(0)
+		log.SetOutput(ioutil.Discard)
 	}
 
 	start_tmt()
@@ -208,7 +208,6 @@ func main() {
 
 	fpsTicker := time.NewTicker(time.Second / 30)
 
-	//LoadFileIfNotLoaded(ed, flag.Arg(0))
 	SetFont(ed.ActiveBuffer, 12)
 	//log.Println("Starting main loop")
 	needsRedraw = true
