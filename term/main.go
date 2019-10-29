@@ -125,11 +125,11 @@ func main() {
 
 		if mods == 2 && action == 1 && key != 341 {
 			mask := ^byte(64 + 128)
-			//log.Printf("mask: %#b", mask)
+			log.Printf("key mask: %#b", mask)
 			val := byte(key)
-			//log.Printf("val: %#b", val)
+			log.Printf("key val: %#b", val)
 			b := mask & val
-			//log.Printf("byte: %#b", b)
+			log.Printf("key byte: %#b", b)
 			shellIn <- []byte{b}
 
 		}
@@ -160,7 +160,7 @@ func main() {
 	win.SetCharModsCallback(func(w *glfw.Window, char rune, mods glfw.ModifierKey) {
 
 		text := fmt.Sprintf("%c", char)
-		//fmt.Printf("Text: %v\n", text)
+		log.Printf("Text input: %v\n", text)
 		shellIn <- []byte(text)
 
 	})
@@ -193,9 +193,9 @@ func main() {
 	go func() {
 		for {
 			if active {
-				//log.Println("Waiting for data from stdoutQ")
+				log.Println("Waiting for data from stdoutQ")
 				data := <-shellOut
-				//log.Println("Got data", string(data))
+				log.Println("Got data", string(data))
 				if runtime.GOOS == "windows" {
 					data = bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1)
 				}
@@ -209,7 +209,7 @@ func main() {
 	fpsTicker := time.NewTicker(time.Second / 30)
 
 	SetFont(ed.ActiveBuffer, 12)
-	//log.Println("Starting main loop")
+	log.Println("Starting main loop")
 	needsRedraw = true
 
 	for {
