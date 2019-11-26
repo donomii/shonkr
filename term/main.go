@@ -25,7 +25,16 @@ import (
 
 	"log"
 
+	"path/filepath"
+
+	"os/user"
+
 	"github.com/donomii/glim"
+	"github.com/liamg/aminal/config"
+	"github.com/liamg/aminal/platform"
+	"github.com/liamg/aminal/terminal"
+	"github.com/riywo/loginshell"
+	"go.uber.org/zap"
 )
 
 var shell string
@@ -58,7 +67,6 @@ type UserConfig struct {
 var winWidth = 900
 var winHeight = 900
 var ed *GlobalConfig
-var config UserConfig
 var confFile string
 
 //var stdinQ, stdoutQ, stderrQ,
@@ -71,6 +79,48 @@ func init() {
 
 var pic []uint8
 var picBytes []byte
+var aminal *terminal.Terminal
+
+func startAminal() *terminal.Terminal {
+	conf := getConfig()
+	logger, err := getLogger(conf)
+	if err != nil {
+		fmt.Printf("Failed to create logger: %s\n", err)
+		os.Exit(1)
+	}
+	defer logger.Sync()
+
+	logger.Infof("Allocating pty...")
+
+	pty, err := platform.NewPty(80, 25)
+	if err != nil {
+		logger.Fatalf("Failed to allocate pty: %s", err)
+	}
+
+	shellStr := conf.Shell
+	if shellStr == "" {
+		loginShell, err := loginshell.Shell()
+		if err != nil {
+			logger.Fatalf("Failed to ascertain your shell: %s", err)
+		}
+		shellStr = loginShell
+	}
+
+	os.Setenv("TERM", "xterm-256color") // controversial! easier than installing terminfo everywhere, but obviously going to be slightly different to xterm functionality, so we'll see...
+	os.Setenv("COLORTERM", "truecolor")
+
+	guestProcess, err := pty.CreateGuestProcess(shellStr)
+	if err != nil {
+		pty.Close()
+		logger.Fatalf("Failed to start your shell: %s", err)
+	}
+	defer guestProcess.Close()
+
+	logger.Infof("Creating terminal...")
+	terminal := terminal.New(pty, nil, conf)
+
+	return terminal
+}
 
 func main() {
 	runtime.LockOSThread()
@@ -87,6 +137,7 @@ func main() {
 	}
 
 	start_tmt()
+	aminal = startAminal()
 	//time.Sleep(1 * time.Second)
 	os.Setenv("TERM", "dumb")
 	os.Setenv("LINES", "24")
@@ -248,4 +299,118 @@ func main() {
 		}
 	}
 
+}
+
+//Aminal support functions
+
+func getLogger(conf *config.Config) (*zap.SugaredLogger, error) {
+
+	var logger *zap.Logger
+	var err error
+	if conf.DebugMode {
+		logger, err = zap.NewDevelopment()
+	} else {
+		loggerConfig := zap.NewProductionConfig()
+		loggerConfig.Encoding = "console"
+		logger, err = loggerConfig.Build()
+	}
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create logger: %s", err)
+	}
+	return logger.Sugar(), nil
+}
+
+func getActuallyProvidedFlags() map[string]bool {
+	result := make(map[string]bool)
+
+	flag.Visit(func(f *flag.Flag) {
+		result[f.Name] = true
+	})
+
+	return result
+}
+
+func getConfig() *config.Config {
+	showVersion := false
+	ignoreConfig := false
+	shell := ""
+	debugMode := false
+	slomo := false
+
+	if flag.Parsed() == false {
+		flag.BoolVar(&showVersion, "version", showVersion, "Output version information")
+		flag.BoolVar(&ignoreConfig, "ignore-config", ignoreConfig, "Ignore user config files and use defaults")
+		flag.StringVar(&shell, "shell", shell, "Specify the shell to use")
+		flag.BoolVar(&debugMode, "debug", debugMode, "Enable debug logging")
+		flag.BoolVar(&slomo, "slomo", slomo, "Render in slow motion (useful for debugging)")
+
+		flag.Parse() // actual parsing and fetching flags from the command line
+	}
+	actuallyProvidedFlags := getActuallyProvidedFlags()
+
+	var conf *config.Config
+	if ignoreConfig {
+		conf = &config.DefaultConfig
+	} else {
+		conf = loadConfigFile()
+	}
+
+	// Override values in the configuration file with the values specified in the command line, if any.
+	if actuallyProvidedFlags["shell"] {
+		conf.Shell = shell
+	}
+
+	if actuallyProvidedFlags["debug"] {
+		conf.DebugMode = debugMode
+	}
+
+	if actuallyProvidedFlags["slomo"] {
+		conf.Slomo = slomo
+	}
+
+	return conf
+}
+
+func loadConfigFile() *config.Config {
+
+	usr, err := user.Current()
+	if err != nil {
+		fmt.Printf("Failed to get current user information: %s\n", err)
+		return &config.DefaultConfig
+	}
+
+	home := usr.HomeDir
+	if home == "" {
+		return &config.DefaultConfig
+	}
+
+	places := []string{}
+
+	places = append(places, filepath.Join(home, ".config/aminal/config.toml"))
+	places = append(places, filepath.Join(home, ".aminal.toml"))
+
+	for _, place := range places {
+		if b, err := ioutil.ReadFile(place); err == nil {
+			if c, err := config.Parse(b); err == nil {
+				return c
+			}
+
+			fmt.Printf("Invalid config at %s: %s\n", place, err)
+		}
+	}
+
+	if b, err := config.DefaultConfig.Encode(); err != nil {
+		fmt.Printf("Failed to encode config file: %s\n", err)
+	} else {
+		err = os.MkdirAll(filepath.Dir(places[0]), 0744)
+		if err != nil {
+			fmt.Printf("Failed to create config file directory: %s\n", err)
+		} else {
+			if err = ioutil.WriteFile(places[0], b, 0644); err != nil {
+				fmt.Printf("Failed to encode config file: %s\n", err)
+			}
+		}
+	}
+
+	return &config.DefaultConfig
 }
