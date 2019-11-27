@@ -51,6 +51,7 @@ var repos [][]string
 var lastSelect string
 var workerChan chan string
 var needsRedraw bool
+var useAminal bool = true
 
 type Option uint8
 
@@ -79,7 +80,7 @@ func init() {
 
 var pic []uint8
 var picBytes []byte
-var aminal *terminal.Terminal
+var aminalTerm *terminal.Terminal
 
 func startAminal() *terminal.Terminal {
 	conf := getConfig()
@@ -117,9 +118,58 @@ func startAminal() *terminal.Terminal {
 	defer guestProcess.Close()
 
 	logger.Infof("Creating terminal...")
-	terminal := terminal.New(pty, nil, conf)
+	terminal := terminal.New(pty, logger, conf)
+	x, y := terminal.GetSize()
+	fmt.Printf("Size %v,%v", x, y)
+	terminal.SetSize(80, 24)
+	x, y = terminal.GetSize()
+	fmt.Printf("Size %v,%v", x, y)
+	go func() {
+		for {
+			err := terminal.Read()
+			if err != nil {
+				log.Printf("Read from pty failed: %s", err)
+			}
+		}
 
+	}()
+
+	terminal.WriteReturn()
+	terminal.WriteReturn()
+	terminal.WriteReturn()
+	terminal.Write([]byte("l"))
+	terminal.Write([]byte("s"))
+	terminal.Write([]byte("\n"))
+	terminal.WriteReturn()
+	terminal.ActiveBuffer().Write('H')
+	time.Sleep(1 * time.Second)
+	lines := terminal.GetVisibleLines()
+	lineCount := int(terminal.ActiveBuffer().ViewHeight())
+	colCount := int(terminal.ActiveBuffer().ViewWidth())
+	fmt.Printf("%vx%v, %+v", colCount, lineCount, lines)
+	for _, line := range lines {
+		for _, cell := range line.Cells() {
+			fmt.Print(string(cell.Rune()))
+		}
+		fmt.Println()
+	}
+	fmt.Println("Aminal startup complete")
 	return terminal
+}
+
+func aminalString(term *terminal.Terminal) string {
+	var out string
+	lines := term.GetVisibleLines()
+	//lineCount := int(term.ActiveBuffer().ViewHeight())
+	//colCount := int(term.ActiveBuffer().ViewWidth())
+	//fmt.Printf("%vx%v, %+v", colCount, lineCount, lines)
+	for _, line := range lines {
+		for _, cell := range line.Cells() {
+			out = out + string(cell.Rune())
+		}
+		out = out + "\n"
+	}
+	return out
 }
 
 func main() {
@@ -129,6 +179,7 @@ func main() {
 	picBytes = make([]byte, 3000*3000*4)
 	var doLogs bool
 	flag.BoolVar(&doLogs, "debug", false, "Display logging information")
+	flag.BoolVar(&useAminal, "aminal", false, "Start aminal termal decoder")
 	flag.StringVar(&shell, "shell", "/bin/bash", "The command shell to run")
 	flag.Parse()
 	if !doLogs {
@@ -137,7 +188,9 @@ func main() {
 	}
 
 	start_tmt()
-	aminal = startAminal()
+	if useAminal {
+		aminalTerm = startAminal()
+	}
 	//time.Sleep(1 * time.Second)
 	os.Setenv("TERM", "dumb")
 	os.Setenv("LINES", "24")
@@ -264,6 +317,7 @@ func main() {
 	needsRedraw = true
 
 	for {
+		fmt.Println("Draw")
 		select {
 
 		case <-exitC:
@@ -307,13 +361,9 @@ func getLogger(conf *config.Config) (*zap.SugaredLogger, error) {
 
 	var logger *zap.Logger
 	var err error
-	if conf.DebugMode {
-		logger, err = zap.NewDevelopment()
-	} else {
-		loggerConfig := zap.NewProductionConfig()
-		loggerConfig.Encoding = "console"
-		logger, err = loggerConfig.Build()
-	}
+
+	logger, err = zap.NewDevelopment()
+
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create logger: %s", err)
 	}

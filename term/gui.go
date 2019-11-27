@@ -244,10 +244,16 @@ func QuickFileEditor(ctx *nk.Context) {
 				log.Println("Render paragraph")
 				mouseX := 10
 				mouseY := 10
+				//screen :=
+				//glim.RenderPara(ed.ActiveBuffer.Formatter,
+				displayText := ed.ActiveBuffer.Data.Text
+				if useAminal {
+					displayText = aminalString(aminalTerm)
+				}
 				glim.RenderPara(ed.ActiveBuffer.Formatter,
 					0, 0, 0, 0,
 					width, nuHeight, width, nuHeight,
-					int(mouseX)-left, int(mouseY)-top, pic, ed.ActiveBuffer.Data.Text,
+					int(mouseX)-left, int(mouseY)-top, pic, displayText,
 					false, true, true)
 				log.Println("Finished render paragraph")
 				log.Println("Render image (", len(pic), " ", width, " ", nuHeight)
