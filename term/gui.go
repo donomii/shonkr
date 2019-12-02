@@ -241,15 +241,16 @@ func QuickFileEditor(ctx *nk.Context) {
 				form.Colour = foreColour
 				form.Colour = backColour
 				form.Outline = true
-				log.Println("Render paragraph")
+
 				mouseX := 10
 				mouseY := 10
-				//screen :=
-				//glim.RenderPara(ed.ActiveBuffer.Formatter,
 				displayText := ed.ActiveBuffer.Data.Text
 				if useAminal {
+					log.Println("Get text")
 					displayText = aminalString(aminalTerm)
 				}
+				log.Println("Render paragraph", string(displayText))
+
 				glim.RenderPara(ed.ActiveBuffer.Formatter,
 					0, 0, 0, 0,
 					width, nuHeight, width, nuHeight,
@@ -266,14 +267,15 @@ func QuickFileEditor(ctx *nk.Context) {
 }
 
 func doImage(ctx *nk.Context, pic []uint8, width, nuHeight int) {
-	log.Println("Rendering image")
+	log.Printf("Rendering image, %vx%v", width, nuHeight)
 	nk.NkLayoutRowDynamic(ctx, float32(nuHeight), 1)
 	{
+		fmt.Println("New row")
 		var err error = nil
-		log.Println("calling rawtex")
+		log.Println("calling RawTexture")
 
 		mapTex1, err = nktemplates.RawTexture(glim.Uint8ToBytes(pic, picBytes), int32(width), int32(nuHeight), mapTex1)
-
+		log.Println("rawtex comlplete, starting nkimageid")
 		if err == nil {
 			testim := nk.NkImageId(int32(mapTex1.Handle))
 			log.Println("nk image")

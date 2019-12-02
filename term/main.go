@@ -29,6 +29,9 @@ import (
 
 	"os/user"
 
+	"net/http"
+	_ "net/http/pprof"
+
 	"github.com/donomii/glim"
 	"github.com/liamg/aminal/config"
 	"github.com/liamg/aminal/platform"
@@ -124,6 +127,7 @@ func startAminal() *terminal.Terminal {
 	terminal.SetSize(80, 24)
 	x, y = terminal.GetSize()
 	fmt.Printf("Size %v,%v", x, y)
+
 	go func() {
 		for {
 			err := terminal.Read()
@@ -134,25 +138,27 @@ func startAminal() *terminal.Terminal {
 
 	}()
 
-	terminal.WriteReturn()
-	terminal.WriteReturn()
-	terminal.WriteReturn()
-	terminal.Write([]byte("l"))
-	terminal.Write([]byte("s"))
-	terminal.Write([]byte("\n"))
-	terminal.WriteReturn()
-	terminal.ActiveBuffer().Write('H')
-	time.Sleep(1 * time.Second)
-	lines := terminal.GetVisibleLines()
-	lineCount := int(terminal.ActiveBuffer().ViewHeight())
-	colCount := int(terminal.ActiveBuffer().ViewWidth())
-	fmt.Printf("%vx%v, %+v", colCount, lineCount, lines)
-	for _, line := range lines {
-		for _, cell := range line.Cells() {
-			fmt.Print(string(cell.Rune()))
+	/*
+		terminal.WriteReturn()
+		terminal.WriteReturn()
+		terminal.WriteReturn()
+		terminal.Write([]byte("l"))
+		terminal.Write([]byte("s"))
+		terminal.Write([]byte("\n"))
+		terminal.WriteReturn()
+		terminal.ActiveBuffer().Write('H')
+		time.Sleep(1 * time.Second)
+		lines := terminal.GetVisibleLines()
+		lineCount := int(terminal.ActiveBuffer().ViewHeight())
+		colCount := int(terminal.ActiveBuffer().ViewWidth())
+		fmt.Printf("%vx%v, %+v", colCount, lineCount, lines)
+		for _, line := range lines {
+			for _, cell := range line.Cells() {
+				fmt.Print(string(cell.Rune()))
+			}
+			fmt.Println()
 		}
-		fmt.Println()
-	}
+	*/
 	fmt.Println("Aminal startup complete")
 	return terminal
 }
@@ -173,8 +179,10 @@ func aminalString(term *terminal.Terminal) string {
 }
 
 func main() {
-	runtime.LockOSThread()
 
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
 	pic = make([]uint8, 3000*3000*4)
 	picBytes = make([]byte, 3000*3000*4)
 	var doLogs bool
@@ -189,7 +197,9 @@ func main() {
 
 	start_tmt()
 	if useAminal {
-		aminalTerm = startAminal()
+		go func() {
+			aminalTerm = startAminal()
+		}()
 	}
 	//time.Sleep(1 * time.Second)
 	os.Setenv("TERM", "dumb")
@@ -321,12 +331,14 @@ func main() {
 		select {
 
 		case <-exitC:
+			fmt.Println("Shutdown")
 			nk.NkPlatformShutdown()
 			glfw.Terminate()
 			fpsTicker.Stop()
 			close(doneC)
 			return
 		case <-fpsTicker.C:
+			fmt.Println("Tick")
 			if win.ShouldClose() {
 				close(exitC)
 				continue
@@ -351,6 +363,7 @@ func main() {
 			}
 
 		}
+		fmt.Println("Next loop")
 	}
 
 }
