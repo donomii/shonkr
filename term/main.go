@@ -55,6 +55,8 @@ var lastSelect string
 var workerChan chan string
 var needsRedraw bool
 var useAminal bool = true
+var atlas *nk.FontAtlas
+var sansFont *nk.Font
 
 type Option uint8
 
@@ -285,9 +287,9 @@ func main() {
 
 	ctx := nk.NkPlatformInit(win, nk.PlatformInstallCallbacks)
 
-	atlas := nk.NewFontAtlas()
+	atlas = nk.NewFontAtlas()
 	nk.NkFontStashBegin(&atlas)
-	sansFont := nk.NkFontAtlasAddFromBytes(atlas, goregular.TTF, 16, nil)
+	sansFont = nk.NkFontAtlasAddFromBytes(atlas, goregular.TTF, 16, nil)
 	nk.NkFontStashEnd()
 	if sansFont != nil {
 		nk.NkStyleSetFont(ctx, sansFont.Handle())
