@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"os"
+	"runtime/debug"
 
 	"fmt"
 	"io/ioutil"
@@ -81,6 +82,7 @@ var shellIn, shellOut chan []byte
 // Arrange that main.main runs on main thread.
 func init() {
 	runtime.LockOSThread()
+	debug.SetGCPercent(-1)
 }
 
 var pic []uint8
@@ -331,7 +333,6 @@ func main() {
 	needsRedraw = true
 
 	for {
-		fmt.Println("Draw")
 		select {
 
 		case <-exitC:
@@ -342,7 +343,6 @@ func main() {
 			close(doneC)
 			return
 		case <-fpsTicker.C:
-			fmt.Println("Tick")
 			if win.ShouldClose() {
 				close(exitC)
 				continue
@@ -367,7 +367,7 @@ func main() {
 			}
 
 		}
-		fmt.Println("Next loop")
+		runtime.GC()
 	}
 
 }

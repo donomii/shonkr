@@ -270,7 +270,6 @@ func doImage(ctx *nk.Context, pic []uint8, width, nuHeight int) {
 	log.Printf("Rendering image, %vx%v", width, nuHeight)
 	nk.NkLayoutRowDynamic(ctx, float32(nuHeight), 1)
 	{
-		fmt.Println("New row")
 		var err error = nil
 		log.Println("calling RawTexture")
 
