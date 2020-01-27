@@ -293,6 +293,8 @@ func main() {
 	nk.NkFontStashEnd()
 	if sansFont != nil {
 		nk.NkStyleSetFont(ctx, sansFont.Handle())
+	} else {
+		panic("Font load failed")
 	}
 
 	exitC := make(chan struct{}, 1)
