@@ -110,6 +110,26 @@ func drawmenu(ctx *nk.Context, state *State) {
 		nk.NkMenuEnd(ctx)
 	}
 
+	if nk.NkMenuBeginLabel(ctx, "Screen", nk.TextLeft, nk.NkVec2(menuItemWidth, menuItemHeight)) > 0 {
+		nk.NkLayoutRowDynamic(ctx, 25, 1)
+		if nk.NkMenuItemLabel(ctx, "List screens", nk.TextLeft) > 0 {
+			shellIn <- []byte("screen -ls\n")
+		}
+		if nk.NkMenuItemLabel(ctx, "Start Screen", nk.TextLeft) > 0 {
+			shellIn <- []byte("screen -S ")
+		}
+		if nk.NkMenuItemLabel(ctx, "Resume Screen", nk.TextLeft) > 0 {
+			shellIn <- []byte("screen -r ")
+		}
+		if nk.NkMenuItemLabel(ctx, "Detach Screen", nk.TextLeft) > 0 {
+			shellIn <- []byte("\u0001d")
+		}
+		if nk.NkMenuItemLabel(ctx, "Redraw Screen", nk.TextLeft) > 0 {
+			shellIn <- []byte("\u0001\u000c")
+		}
+		nk.NkMenuEnd(ctx)
+	}
+
 	if nk.NkMenuBeginLabel(ctx, "Buffers", nk.TextLeft, nk.NkVec2(menuItemWidth, menuItemHeight)) > 0 {
 		check := int32(1)
 		nk.NkLayoutRowDynamic(ctx, 25, 1)
