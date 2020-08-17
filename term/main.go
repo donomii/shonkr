@@ -361,13 +361,14 @@ func main() {
 				TARGET_FPS := 10.0
 				if glfw.GetTime() < lasttime+1.0/TARGET_FPS {
 					time.Sleep(10 * time.Millisecond)
+					runtime.GC()
 				} else {
 					needsRedraw = true
 				}
 			}
 
 		}
-		runtime.GC()
+
 	}
 
 }
