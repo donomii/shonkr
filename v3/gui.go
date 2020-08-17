@@ -263,19 +263,6 @@ func gfxMain(win *glfw.Window, ctx *nk.Context, state *State) {
 
 			//pf := nk.NewPluginFilterRef(unsafe.Pointer(&nk.NkFilterDefault))
 
-			size := nk.NkVec2(nk.NkWidgetWidth(ctx), 400)
-			if nk.NkComboBeginColor(ctx, state.bgColor, size) > 0 {
-				nk.NkLayoutRowDynamic(ctx, 120, 1)
-				//state.bgColor = nk.Color(nk.NkColorPicker(ctx, state.bgColor, nk.ColorFormatRGBA))
-				nk.NkLayoutRowDynamic(ctx, 25, 1)
-				r, g, b, a := state.bgColor.RGBAi()
-				r = nk.NkPropertyi(ctx, "#R:", 0, r, 255, 1, 1)
-				g = nk.NkPropertyi(ctx, "#G:", 0, g, 255, 1, 1)
-				b = nk.NkPropertyi(ctx, "#B:", 0, b, 255, 1, 1)
-				a = nk.NkPropertyi(ctx, "#A:", 0, a, 255, 1, 1)
-				state.bgColor.SetRGBAi(r, g, b, a)
-				nk.NkComboEnd(ctx)
-			}
 		}
 
 	}
@@ -494,7 +481,11 @@ func QuickFileEditor(ctx *nk.Context) {
 				//gl.DeleteTextures(testim)
 				//t, err := nktemplates.LoadImageFile(fmt.Sprintf("%v/progress%05v.png", output, fnum), width, height)
 				//t := nktemplates.LoadImageData(globalPic, width, height)
+<<<<<<< HEAD
 				mapTex, _ = nktemplates.RawTexture(glim.Uint8ToBytes(pic, nil),
+=======
+				mapTex, _ = nktemplates.RawTexture(glim.Uint8ToBytes(pic,nil),
+>>>>>>> 5157902777409f66343165956faea20eed2dd41b
 					int32(width), int32(nuHeight), mapTex)
 				var err error = nil
 				if err == nil {
@@ -524,7 +515,11 @@ func QuickFileEditor(ctx *nk.Context) {
 func doImage(ctx *nk.Context, pic []uint8, width, nuHeight int) {
 	nk.NkLayoutRowDynamic(ctx, float32(nuHeight), 1)
 	{
+<<<<<<< HEAD
 		mapTex1, _ = nktemplates.RawTexture(glim.Uint8ToBytes(pic,nil), int32(width), int32(nuHeight), mapTex1)
+=======
+		mapTex1, _ = nktemplates.RawTexture(glim.Uint8ToBytes(pic, nil), int32(width), int32(nuHeight), mapTex1)
+>>>>>>> 5157902777409f66343165956faea20eed2dd41b
 		var err error = nil
 		if err == nil {
 			testim := nk.NkImageId(int32(mapTex1.Handle))
