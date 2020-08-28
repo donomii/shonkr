@@ -544,10 +544,6 @@ TMT * terminal_open() {
     }
 
 
-char *
-terminal_screen(const TMT *vt)
-{
-}
 
 wchar_t terminal_char(TMT *vt, int x, int y) {
      TMTLINE * line = vt->screen.lines[y];
