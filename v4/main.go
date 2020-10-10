@@ -47,17 +47,10 @@ func Seq(min, max int) []int {
 func handleKeys(window *glfw.Window) {
 	window.SetKeyCallback(func(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
 
-		//fmt.Printf("Got key %c,%v,%v,%v", key, key, mods, action)
+		fmt.Printf("Got key %c,%v,%v,%v", key, key, mods, action)
 		if action > 0 {
 			if key == 256 {
 				os.Exit(0)
-			}
-
-			if key == 265 {
-				selected -= 1
-				if selected < 0 {
-					selected = 0
-				}
 			}
 
 			if key == 264 {
@@ -68,13 +61,7 @@ func handleKeys(window *glfw.Window) {
 			}
 
 			if key == 257 {
-
-				status = "Loading " + pred[selected]
-				mode = "laoding"
-				update = true
-				go func() {
-
-				}()
+				ActiveBufferInsert(ed, "\n")
 			}
 
 			if key == 259 {
@@ -91,8 +78,9 @@ func handleKeys(window *glfw.Window) {
 	window.SetCharModsCallback(func(w *glfw.Window, char rune, mods glfw.ModifierKey) {
 
 		text := fmt.Sprintf("%c", char)
-		//fmt.Printf("Text input: %v\n", text)
+		fmt.Printf("Text input: %v\n", text)
 		input = input + text
+		ActiveBufferInsert(ed, text)
 
 		update = true
 
