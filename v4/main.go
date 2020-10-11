@@ -60,14 +60,24 @@ func handleKeys(window *glfw.Window) {
 				}
 			}
 
-			if key == 257 {
+			switch key {
+			case 257:
 				ActiveBufferInsert(ed, "\n")
-			}
+			case 263:
+				dispatch("PREVIOUS-CHARACTER", ed)
+			case 262:
+				dispatch("NEXT-CHARACTER", ed)
+			case 265:
+				dispatch("PREVIOUS-LINE", ed)
+			case 264:
+				dispatch("NEXT-LINE", ed)
+			case 268:
+				dispatch("START-OF-TEXT-ON-LINE", ed)
+			case 269:
+				dispatch("SEEK-EOL", ed)
+			case 259:
+				dispatch("DELETE-LEFT", ed)
 
-			if key == 259 {
-				if len(input) > 0 {
-					input = input[0 : len(input)-1]
-				}
 			}
 
 			update = true
@@ -91,6 +101,12 @@ func main() {
 	var doLogs bool
 	flag.BoolVar(&doLogs, "debug", false, "Display logging information")
 	flag.Parse()
+	filename := ""
+	log.Println(flag.Args())
+	if len(flag.Args()) > 0 {
+		filename = flag.Arg(0)
+	}
+	log.Println("Loading", filename)
 
 	if !doLogs {
 		log.SetFlags(0)
@@ -163,6 +179,11 @@ func main() {
 
 	lastTime := glfw.GetTime()
 	frames := 0
+
+	if filename != "" {
+		data, _ := ioutil.ReadFile(filename)
+		ActiveBufferInsert(ed, string(data))
+	}
 
 	log.Println("Start rendering")
 	for !window.ShouldClose() {

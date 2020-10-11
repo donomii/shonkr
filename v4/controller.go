@@ -177,7 +177,10 @@ func ScanToNextPara(txt string, c int) int {
 func ScanToNextLine(txt string, c int) int {
 	letters := strings.Split(txt, "")
 	x := c
-	for x = c + 1; x > 1 && x < len(txt) && !(letters[x-1] == "\n"); x++ {
+	if !(x < len(txt)) {
+		return c
+	}
+	for x = c + 1; x > 1 && x < len(letters) && !(letters[x-1] == "\n"); x++ {
 	}
 	if x == len(txt) {
 		return c

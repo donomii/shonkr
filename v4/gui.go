@@ -49,7 +49,7 @@ func renderEd(w, h int) {
 			0, 0, 0, 0,
 			w, h, w, h,
 			int(mouseX)-left, int(mouseY)-top, pic, displayText,
-			false, true, false)
+			false, true, true)
 		log.Println("Finished render paragraph")
 	}
 }
