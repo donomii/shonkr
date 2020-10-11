@@ -93,18 +93,18 @@ func Log2Buff(gc *GlobalConfig, s string) {
 }
 
 //Does a page up, by searching backwards util the old top line is off the bottom of the screen
-func SearchBackPage(txtBuf string, orig_f *glim.FormatParams, screenWidth, screenHeight int) int {
-	input := *orig_f
-	x := input.StartLinePos
-	newLastDrawn := input.LastDrawnCharPos
-	for x = input.Cursor; x > 0 && input.FirstDrawnCharPos < newLastDrawn; x = ScanToPrevLine(txtBuf, x) {
-		f := input
-		f.FirstDrawnCharPos = x
+func SearchBackPage(txtBuf string, f *glim.FormatParams, screenWidth, screenHeight int) int {
 
-		glim.RenderPara(&f, 0, 0, 0, 0, screenWidth/2, screenHeight, screenWidth/2, screenHeight, 0, 0, nil, txtBuf, false, false, false)
-		newLastDrawn = f.LastDrawnCharPos
+	original_top := ScanToNextLine(txtBuf, f.FirstDrawnCharPos)
+	for f.FirstDrawnCharPos = f.FirstDrawnCharPos; f.FirstDrawnCharPos > 0 && original_top < f.LastDrawnCharPos; f.FirstDrawnCharPos = ScanToPrevLine(txtBuf, f.FirstDrawnCharPos) {
+
+		fmt.Printf("First char: %v, last char: %v, original top: %v\n", f.FirstDrawnCharPos, f.LastDrawnCharPos, original_top)
+		glim.RenderPara(f, 0, 0, 0, 0, screenWidth, screenHeight, screenWidth, screenHeight, 0, 0, nil, txtBuf, false, false, false)
 	}
-	return x
+	f.FirstDrawnCharPos = ScanToNextLine(txtBuf, f.FirstDrawnCharPos)
+	f.FirstDrawnCharPos = ScanToNextLine(txtBuf, f.FirstDrawnCharPos)
+	f.FirstDrawnCharPos = ScanToNextLine(txtBuf, f.FirstDrawnCharPos)
+	return f.FirstDrawnCharPos
 }
 
 func DumpBuffer(gc *GlobalConfig, b *Buffer) {
@@ -123,7 +123,7 @@ func ScanToPrevPara(txt string, c int) int {
 	log.Println("To Previous Line")
 	letters := strings.Split(txt, "")
 	x := c
-	for x = c - 1; x > 1 && x < len(txt) && !(letters[x-1] == "\n" && letters[x] != "\n"); x-- {
+	for x = c - 1; x > 1 && x < len(letters) && !(letters[x-1] == "\n" && letters[x] != "\n"); x-- {
 	}
 	return x
 }
@@ -132,7 +132,7 @@ func ScanToPrevLine(txt string, c int) int {
 	log.Println("To Previous Line")
 	letters := strings.Split(txt, "")
 	x := c
-	for x = c - 1; x > 1 && x < len(txt) && !(letters[x-1] == "\n"); x-- {
+	for x = c - 1; x > 1 && x < len(letters) && !(letters[x-1] == "\n"); x-- {
 	}
 	return x
 }
@@ -279,7 +279,7 @@ func PageDown(buf *Buffer) {
 }
 
 func ScrollToCursor(buf *Buffer) {
-	buf.Formatter.FirstDrawnCharPos = buf.Formatter.Cursor
+	buf.Formatter.FirstDrawnCharPos = ScanToPrevLine(buf.Data.Text, buf.Formatter.Cursor)
 }
 
 func ExciseSelection(buf *Buffer) {
@@ -395,18 +395,24 @@ func dispatch(command string, gc *GlobalConfig) {
 		DecreaseFont(gc.ActiveBuffer)
 	case "INCREASE-FONT":
 		IncreaseFont(gc.ActiveBuffer)
-		//	case "PAGEDOWN":
-	//	DoPageDown(gc.ActiveBuffer)
-	//case "PAGEUP":
-	//PageUp(gc.ActiveBuffer, screenWidth, screenHeight)
+	case "PAGE-DOWN":
+		DoPageDown(gc, gc.ActiveBuffer)
+	case "PAGE-UP":
+		PageUp(gc.ActiveBuffer, 800, 600)
 	case "PREVIOUS-CHARACTER":
 		PreviousCharacter(gc.ActiveBuffer)
 	case "NEXT-CHARACTER":
 		gc.ActiveBuffer.Formatter.Cursor = gc.ActiveBuffer.Formatter.Cursor + 1
 	case "PREVIOUS-LINE":
 		gc.ActiveBuffer.Formatter.Cursor = ScanToPrevLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
+		if gc.ActiveBuffer.Formatter.Cursor < gc.ActiveBuffer.Formatter.FirstDrawnCharPos {
+			gc.ActiveBuffer.Formatter.FirstDrawnCharPos = ScanToPrevLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.FirstDrawnCharPos)
+		}
 	case "NEXT-LINE":
 		gc.ActiveBuffer.Formatter.Cursor = ScanToNextLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
+		if gc.ActiveBuffer.Formatter.Cursor > gc.ActiveBuffer.Formatter.LastDrawnCharPos {
+			gc.ActiveBuffer.Formatter.FirstDrawnCharPos = ScanToNextLine(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.FirstDrawnCharPos)
+		}
 	case "NEXT-BUFFER":
 		NextBuffer(gc)
 	case "PREVIOUS-BUFFER":
@@ -450,8 +456,8 @@ func PageUp(buf *Buffer, w, h int) {
 	log.Println("Page up")
 	start := SearchBackPage(buf.Data.Text, buf.Formatter, w, h)
 	log.Println("New start at ", start)
-	buf.Formatter.FirstDrawnCharPos = start
-	buf.Formatter.Cursor = buf.Formatter.FirstDrawnCharPos
+	//buf.Formatter.FirstDrawnCharPos = start
+	buf.Formatter.Cursor = buf.Formatter.FirstDrawnCharPos + 1
 }
 
 /*

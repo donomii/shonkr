@@ -47,7 +47,7 @@ func Seq(min, max int) []int {
 func handleKeys(window *glfw.Window) {
 	window.SetKeyCallback(func(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
 
-		fmt.Printf("Got key %c,%v,%v,%v", key, key, mods, action)
+		fmt.Printf("Got key %c,%v,%v,%v\n", key, key, mods, action)
 		if action > 0 {
 			if key == 256 {
 				os.Exit(0)
@@ -77,6 +77,12 @@ func handleKeys(window *glfw.Window) {
 				dispatch("SEEK-EOL", ed)
 			case 259:
 				dispatch("DELETE-LEFT", ed)
+			case 267:
+				dispatch("PAGE-DOWN", ed)
+			case 266:
+				dispatch("PAGE-UP", ed)
+				fmt.Println("Starting pageup with ", edWidth, "x", edHeight)
+				PageUp(ed.ActiveBuffer, edWidth, edHeight)
 
 			}
 
@@ -183,6 +189,8 @@ func main() {
 	if filename != "" {
 		data, _ := ioutil.ReadFile(filename)
 		ActiveBufferInsert(ed, string(data))
+		ed.ActiveBuffer.Formatter.Cursor = 0
+		ed.ActiveBuffer.Formatter.FirstDrawnCharPos = 0
 	}
 
 	log.Println("Start rendering")
