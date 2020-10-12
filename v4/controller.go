@@ -263,7 +263,7 @@ func ActiveBufferAppend(gc *GlobalConfig, txt string) {
 
 func ActiveBufferInsert(gc *GlobalConfig, txt string) {
 	if gc.ActiveBuffer.Formatter.Cursor < 0 {
-		log.Println("Warning: cursor position < 0")
+		log.Println("Warning: cursor position < 0:", gc.ActiveBuffer.Formatter.Cursor)
 		gc.ActiveBuffer.Formatter.Cursor = 0
 	}
 	log.Printf("Inserting at %v, length %v\n", gc.ActiveBuffer.Formatter.Cursor, len(txt))
@@ -423,6 +423,14 @@ func dispatch(command string, gc *GlobalConfig) {
 		gc.ActiveBuffer.InputMode = true
 	case "START-OF-LINE":
 		gc.ActiveBuffer.Formatter.Cursor = SOL(gc.ActiveBuffer.Data.Text, gc.ActiveBuffer.Formatter.Cursor)
+	case "START-OF-FILE":
+		gc.ActiveBuffer.Formatter.FirstDrawnCharPos = 0
+	case "END-OF-FILE":
+		gc.ActiveBuffer.Formatter.FirstDrawnCharPos = len(gc.ActiveBuffer.Data.Text) - 300
+		if gc.ActiveBuffer.Formatter.FirstDrawnCharPos < 0 {
+			gc.ActiveBuffer.Formatter.FirstDrawnCharPos = 0
+		}
+		gc.ActiveBuffer.Formatter.Cursor = gc.ActiveBuffer.Formatter.FirstDrawnCharPos
 	case "HORIZONTAL-MODE":
 		gc.ActiveBuffer.Formatter.Vertical = false
 	case "VERTICAL-MODE":

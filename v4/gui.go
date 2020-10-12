@@ -38,18 +38,37 @@ func renderEd(w, h int) {
 		form.Colour = foreColour
 		form.Outline = true
 
-		mouseX := 10
-		mouseY := 10
-		displayText := ed.ActiveBuffer.Data.Text
+		if mode == "menu" {
+			menuForm := glim.NewFormatter()
+			displayText := "Menu goes here\nxxxxxxxxxxxxxx\n"
+			for i, v := range currentMenu.SubNodes {
+				displayText = fmt.Sprintf("%v\n%v) %v", displayText, i, v.Name)
+			}
 
-		log.Println("Render paragraph", string(displayText))
+			ed.ActiveBuffer.Formatter.Cursor = 0
+			ed.ActiveBuffer.Formatter.FirstDrawnCharPos = 0
+			menuForm.FontSize = 32
+			menuForm.Colour = foreColour
+			menuForm.Outline = true
+			glim.RenderPara(menuForm,
+				0, 0, 0, 0,
+				w, h, w, h,
+				10, 10, pic, displayText,
+				false, true, true)
+		} else {
+			mouseX := 10
+			mouseY := 10
+			displayText := ed.ActiveBuffer.Data.Text
 
-		ed.ActiveBuffer.Formatter.FontSize = 32
-		glim.RenderPara(ed.ActiveBuffer.Formatter,
-			0, 0, 0, 0,
-			w, h, w, h,
-			int(mouseX)-left, int(mouseY)-top, pic, displayText,
-			false, true, true)
-		log.Println("Finished render paragraph")
+			log.Println("Render paragraph", string(displayText))
+
+			ed.ActiveBuffer.Formatter.FontSize = 32
+			glim.RenderPara(ed.ActiveBuffer.Formatter,
+				0, 0, 0, 0,
+				w, h, w, h,
+				int(mouseX)-left, int(mouseY)-top, pic, displayText,
+				false, true, true)
+			log.Println("Finished render paragraph")
+		}
 	}
 }

@@ -3,11 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"strconv"
 
 	"runtime"
 	"time"
 
 	"github.com/donomii/glim"
+	"github.com/donomii/menu"
 
 	"io/ioutil"
 	"log"
@@ -31,6 +33,7 @@ var form *glim.FormatParams
 var edWidth = 1000
 var edHeight = 500
 var mode = "searching"
+var currentMenu *menu.Node
 
 func Seq(min, max int) []int {
 	size := max - min + 1
@@ -60,44 +63,65 @@ func handleKeys(window *glfw.Window) {
 				}
 			}
 
-			switch key {
-			case 257:
-				ActiveBufferInsert(ed, "\n")
-			case 263:
-				dispatch("PREVIOUS-CHARACTER", ed)
-			case 262:
-				dispatch("NEXT-CHARACTER", ed)
-			case 265:
-				dispatch("PREVIOUS-LINE", ed)
-			case 264:
-				dispatch("NEXT-LINE", ed)
-			case 268:
-				dispatch("START-OF-TEXT-ON-LINE", ed)
-			case 269:
-				dispatch("SEEK-EOL", ed)
-			case 259:
-				dispatch("DELETE-LEFT", ed)
-			case 267:
-				dispatch("PAGE-DOWN", ed)
-			case 266:
-				dispatch("PAGE-UP", ed)
-				fmt.Println("Starting pageup with ", edWidth, "x", edHeight)
-				PageUp(ed.ActiveBuffer, edWidth, edHeight)
+			if mode == "menu" {
+				switch key {
+				case 301:
+					mode = "searching"
 
+				}
+			} else {
+
+				switch key {
+				case 257:
+					ActiveBufferInsert(ed, "\n")
+				case 263:
+					dispatch("PREVIOUS-CHARACTER", ed)
+				case 262:
+					dispatch("NEXT-CHARACTER", ed)
+				case 265:
+					dispatch("PREVIOUS-LINE", ed)
+				case 264:
+					dispatch("NEXT-LINE", ed)
+				case 268:
+					dispatch("START-OF-TEXT-ON-LINE", ed)
+				case 269:
+					dispatch("SEEK-EOL", ed)
+				case 259:
+					dispatch("DELETE-LEFT", ed)
+				case 267:
+					dispatch("PAGE-DOWN", ed)
+				case 266:
+					dispatch("PAGE-UP", ed)
+					fmt.Println("Starting pageup with ", edWidth, "x", edHeight)
+					PageUp(ed.ActiveBuffer, edWidth, edHeight)
+				case 301:
+					mode = "menu"
+				}
 			}
-
 			update = true
 		}
 
 	})
 
 	window.SetCharModsCallback(func(w *glfw.Window, char rune, mods glfw.ModifierKey) {
+		if mode == "menu" {
+			text := fmt.Sprintf("%c", char)
+			val, _ := strconv.ParseInt(text, 10, strconv.IntSize)
+			fmt.Println("Activating menu option", val)
+			item := currentMenu.SubNodes[val]
+			fmt.Println("Activating menu option", item.Name)
+			f := item.Function
+			if f != nil {
+				f()
+			}
+			mode = "searching"
+		} else {
+			text := fmt.Sprintf("%c", char)
+			fmt.Printf("Text input: %v\n", text)
+			input = input + text
+			ActiveBufferInsert(ed, text)
 
-		text := fmt.Sprintf("%c", char)
-		fmt.Printf("Text input: %v\n", text)
-		input = input + text
-		ActiveBufferInsert(ed, text)
-
+		}
 		update = true
 
 	})
@@ -118,6 +142,27 @@ func main() {
 		log.SetFlags(0)
 		log.SetOutput(ioutil.Discard)
 	}
+
+	currentMenu = menu.MakeNodeShort("Main Menu", nil)
+	item := menu.MakeNodeShort("Go to start", nil)
+	item.Function = func() { dispatch("START-OF-FILE", ed); update = true }
+	menu.AppendNode(currentMenu, item)
+
+	item = menu.MakeNodeShort("Go to end", nil)
+	item.Function = func() { dispatch("END-OF-FILE", ed); update = true }
+	menu.AppendNode(currentMenu, item)
+
+	item = menu.MakeNodeShort("Increase Font", nil)
+	item.Function = func() { dispatch("INCREASE-FONT", ed); update = true }
+	menu.AppendNode(currentMenu, item)
+
+	item = menu.MakeNodeShort("Decrease Font", nil)
+	item.Function = func() { dispatch("DECREASE-FONT", ed); update = true }
+	menu.AppendNode(currentMenu, item)
+
+	item = menu.MakeNodeShort("Save file", nil)
+	item.Function = func() { dispatch("SAVE-FILE", ed); update = true }
+	menu.AppendNode(currentMenu, item)
 
 	log.Println("Init glfw")
 	if err := glfw.Init(); err != nil {
@@ -191,6 +236,7 @@ func main() {
 		ActiveBufferInsert(ed, string(data))
 		ed.ActiveBuffer.Formatter.Cursor = 0
 		ed.ActiveBuffer.Formatter.FirstDrawnCharPos = 0
+		ed.ActiveBuffer.Data.FileName = filename
 	}
 
 	log.Println("Start rendering")
