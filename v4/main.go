@@ -96,6 +96,10 @@ func handleKeys(window *glfw.Window) {
 					PageUp(ed.ActiveBuffer, edWidth, edHeight)
 				case 301:
 					mode = "menu"
+				case 86:
+					if mods == 2 {
+						dispatch("PASTE-FROM-CLIPBOARD", ed)
+					}
 				}
 			}
 			update = true
@@ -282,7 +286,7 @@ func main() {
 }
 
 func blit(pix []uint8, w, h int) {
-	gl.ClearColor(0.0,1.0,0.0,1.0);
+	gl.ClearColor(0.0, 1.0, 0.0, 1.0)
 	gl.Clear(gl.COLOR_BUFFER_BIT)
 	gl.MatrixMode(gl.MODELVIEW)
 	gl.LoadIdentity()
