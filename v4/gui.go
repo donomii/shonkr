@@ -25,7 +25,7 @@ func renderEd(w, h int) {
 
 		size := w * h * 4
 		log.Println("Clearing", size, "bytes(", w, "x", h, ")")
-		backColour = &glim.RGBA{0, 0, 0, 255}
+		backColour = &glim.RGBA{0, 0, 0, 0}
 		foreColour = &glim.RGBA{255, 255, 255, 255}
 		for i := 0; i < size; i = i + 4 {
 			pic[i] = ((*backColour)[0])

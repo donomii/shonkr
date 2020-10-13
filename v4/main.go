@@ -160,6 +160,14 @@ func main() {
 	item.Function = func() { dispatch("DECREASE-FONT", ed); update = true; mode = "searching" }
 	menu.AppendNode(currentMenu, item)
 
+	item = menu.MakeNodeShort("Vertical Mode", nil)
+	item.Function = func() { dispatch("VERTICAL-MODE", ed); update = true; mode = "searching" }
+	menu.AppendNode(currentMenu, item)
+
+	item = menu.MakeNodeShort("Horizontal Mode", nil)
+	item.Function = func() { dispatch("HORIZONTAL-MODE", ed); update = true; mode = "searching" }
+	menu.AppendNode(currentMenu, item)
+
 	item = menu.MakeNodeShort("Save file", nil)
 	item.Function = func() { dispatch("SAVE-FILE", ed); update = true; mode = "searching" }
 	menu.AppendNode(currentMenu, item)
@@ -274,6 +282,7 @@ func main() {
 }
 
 func blit(pix []uint8, w, h int) {
+	gl.ClearColor(0.0,1.0,0.0,1.0);
 	gl.Clear(gl.COLOR_BUFFER_BIT)
 	gl.MatrixMode(gl.MODELVIEW)
 	gl.LoadIdentity()
