@@ -114,7 +114,7 @@ func handleKeys(window *glfw.Window) {
 			if f != nil {
 				f()
 			}
-			mode = "searching"
+
 		} else {
 			text := fmt.Sprintf("%c", char)
 			fmt.Printf("Text input: %v\n", text)
@@ -145,23 +145,36 @@ func main() {
 
 	currentMenu = menu.MakeNodeShort("Main Menu", nil)
 	item := menu.MakeNodeShort("Go to start", nil)
-	item.Function = func() { dispatch("START-OF-FILE", ed); update = true }
+	item.Function = func() { dispatch("START-OF-FILE", ed); update = true; mode = "searching" }
 	menu.AppendNode(currentMenu, item)
 
 	item = menu.MakeNodeShort("Go to end", nil)
-	item.Function = func() { dispatch("END-OF-FILE", ed); update = true }
+	item.Function = func() { dispatch("END-OF-FILE", ed); update = true; mode = "searching" }
 	menu.AppendNode(currentMenu, item)
 
 	item = menu.MakeNodeShort("Increase Font", nil)
-	item.Function = func() { dispatch("INCREASE-FONT", ed); update = true }
+	item.Function = func() { dispatch("INCREASE-FONT", ed); update = true; mode = "searching" }
 	menu.AppendNode(currentMenu, item)
 
 	item = menu.MakeNodeShort("Decrease Font", nil)
-	item.Function = func() { dispatch("DECREASE-FONT", ed); update = true }
+	item.Function = func() { dispatch("DECREASE-FONT", ed); update = true; mode = "searching" }
 	menu.AppendNode(currentMenu, item)
 
 	item = menu.MakeNodeShort("Save file", nil)
-	item.Function = func() { dispatch("SAVE-FILE", ed); update = true }
+	item.Function = func() { dispatch("SAVE-FILE", ed); update = true; mode = "searching" }
+	menu.AppendNode(currentMenu, item)
+
+	item = menu.MakeNodeShort("Switch Buffer", nil)
+	item.Function = func() {
+		buffMenu := menu.MakeNodeShort("Buffer Menu", nil)
+		for i, v := range ed.BufferList {
+			ii := i
+			item = menu.MakeNodeShort(v.Data.FileName, nil)
+			item.Function = func() { ed.ActiveBuffer = ed.BufferList[ii]; update = true }
+			menu.AppendNode(buffMenu, item)
+		}
+		currentMenu = buffMenu
+	}
 	menu.AppendNode(currentMenu, item)
 
 	log.Println("Init glfw")
