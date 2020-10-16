@@ -40,7 +40,7 @@ func renderEd(w, h int) {
 
 		if mode == "menu" {
 			menuForm := glim.NewFormatter()
-			displayText := "Menu goes here\nxxxxxxxxxxxxxx\n"
+			displayText := currentMenu.Name + "\nxxxxxxxxxxxxxx\n"
 			for i, v := range currentMenu.SubNodes {
 				displayText = fmt.Sprintf("%v\n%v) %v", displayText, i, v.Name)
 			}

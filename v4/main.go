@@ -131,6 +131,14 @@ func handleKeys(window *glfw.Window) {
 	})
 }
 
+func addMenuItem(currentMenu *menu.Node, menuText string, f func()) {
+	item := menu.MakeNodeShort(menuText, nil)
+	item.Function = f
+	menu.AppendNode(currentMenu, item)
+}
+
+var rootMenu *menu.Node
+
 func main() {
 	var doLogs bool
 	flag.BoolVar(&doLogs, "debug", false, "Display logging information")
@@ -148,42 +156,25 @@ func main() {
 	}
 
 	currentMenu = menu.MakeNodeShort("Main Menu", nil)
-	item := menu.MakeNodeShort("Go to start", nil)
-	item.Function = func() { dispatch("START-OF-FILE", ed); update = true; mode = "searching" }
-	menu.AppendNode(currentMenu, item)
+	rootMenu = currentMenu
+	addMenuItem(currentMenu, "Go to start", func() { dispatch("START-OF-FILE", ed); update = true; mode = "searching" })
+	addMenuItem(currentMenu, "Go to end", func() { dispatch("END-OF-FILE", ed); update = true; mode = "searching" })
+	addMenuItem(currentMenu, "Increase Font", func() { dispatch("INCREASE-FONT", ed); update = true; mode = "searching" })
 
-	item = menu.MakeNodeShort("Go to end", nil)
-	item.Function = func() { dispatch("END-OF-FILE", ed); update = true; mode = "searching" }
-	menu.AppendNode(currentMenu, item)
+	addMenuItem(currentMenu, "Decrease Font", func() { dispatch("DECREASE-FONT", ed); update = true; mode = "searching" })
 
-	item = menu.MakeNodeShort("Increase Font", nil)
-	item.Function = func() { dispatch("INCREASE-FONT", ed); update = true; mode = "searching" }
-	menu.AppendNode(currentMenu, item)
+	addMenuItem(currentMenu, "Vertical Mode", func() { dispatch("VERTICAL-MODE", ed); update = true; mode = "searching" })
 
-	item = menu.MakeNodeShort("Decrease Font", nil)
-	item.Function = func() { dispatch("DECREASE-FONT", ed); update = true; mode = "searching" }
-	menu.AppendNode(currentMenu, item)
+	addMenuItem(currentMenu, "Horizontal Mode", func() { dispatch("HORIZONTAL-MODE", ed); update = true; mode = "searching" })
 
-	item = menu.MakeNodeShort("Vertical Mode", nil)
-	item.Function = func() { dispatch("VERTICAL-MODE", ed); update = true; mode = "searching" }
-	menu.AppendNode(currentMenu, item)
+	addMenuItem(currentMenu, "Save file", func() { dispatch("SAVE-FILE", ed); update = true; mode = "searching" })
 
-	item = menu.MakeNodeShort("Horizontal Mode", nil)
-	item.Function = func() { dispatch("HORIZONTAL-MODE", ed); update = true; mode = "searching" }
-	menu.AppendNode(currentMenu, item)
-
-	item = menu.MakeNodeShort("Save file", nil)
-	item.Function = func() { dispatch("SAVE-FILE", ed); update = true; mode = "searching" }
-	menu.AppendNode(currentMenu, item)
-
-	item = menu.MakeNodeShort("Switch Buffer", nil)
+	item := menu.MakeNodeShort("Switch Buffer", nil)
 	item.Function = func() {
 		buffMenu := menu.MakeNodeShort("Buffer Menu", nil)
 		for i, v := range ed.BufferList {
 			ii := i
-			item = menu.MakeNodeShort(v.Data.FileName, nil)
-			item.Function = func() { ed.ActiveBuffer = ed.BufferList[ii]; update = true }
-			menu.AppendNode(buffMenu, item)
+			addMenuItem(buffMenu, v.Data.FileName, func() { ed.ActiveBuffer = ed.BufferList[ii]; mode = "searching"; currentMenu = rootMenu; update = true })
 		}
 		currentMenu = buffMenu
 	}
