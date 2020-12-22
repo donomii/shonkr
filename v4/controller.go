@@ -430,7 +430,7 @@ func dispatch(command string, gc *GlobalConfig) {
 		if gc.ActiveBuffer.Formatter.FirstDrawnCharPos < 0 {
 			gc.ActiveBuffer.Formatter.FirstDrawnCharPos = 0
 		}
-		gc.ActiveBuffer.Formatter.Cursor = gc.ActiveBuffer.Formatter.FirstDrawnCharPos
+		gc.ActiveBuffer.Formatter.Cursor = gc.ActiveBuffer.Formatter.LastDrawnCharPos
 	case "HORIZONTAL-MODE":
 		gc.ActiveBuffer.Formatter.Vertical = false
 	case "VERTICAL-MODE":
