@@ -2,6 +2,8 @@
 package main
 
 import (
+	"runtime/debug"
+
 	"github.com/donomii/glim"
 
 	"fmt"
@@ -15,6 +17,7 @@ func renderEd(w, h int) {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println("Recovered in renderEd", r)
+			debug.PrintStack()
 		}
 	}()
 	left := 0
