@@ -1,6 +1,7 @@
 package main
 
 import (
+
 	"flag"
 	"fmt"
 	"strconv"
@@ -13,7 +14,6 @@ import (
 
 	"io/ioutil"
 	"log"
-	"os"
 
 	"github.com/go-gl/gl/v2.1/gl"
 	"github.com/go-gl/glfw/v3.1/glfw"
@@ -47,13 +47,20 @@ func Seq(min, max int) []int {
 	return a
 }
 
+
 func handleKeys(window *glfw.Window) {
 	window.SetKeyCallback(func(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
 
 		fmt.Printf("Got key %c,%v,%v,%v\n", key, key, mods, action)
 		if action > 0 {
-			if key == 256 {
-				os.Exit(0)
+			if key == 256 { //ESCAPE
+				if mode == "menu" {
+					mode = ""
+				} else {
+					currentMenu =  rootMenu
+					mode = "menu"
+				}
+				//os.Exit(0)
 			}
 
 			if key == 264 {
@@ -131,13 +138,6 @@ func handleKeys(window *glfw.Window) {
 	})
 }
 
-func addMenuItem(currentMenu *menu.Node, menuText string, f func()) {
-	item := menu.MakeNodeShort(menuText, nil)
-	item.Function = f
-	menu.AppendNode(currentMenu, item)
-}
-
-var rootMenu *menu.Node
 
 func main() {
 	var doLogs bool
@@ -155,31 +155,7 @@ func main() {
 		log.SetOutput(ioutil.Discard)
 	}
 
-	currentMenu = menu.MakeNodeShort("Main Menu", nil)
-	rootMenu = currentMenu
-	addMenuItem(currentMenu, "Go to start", func() { dispatch("START-OF-FILE", ed); update = true; mode = "searching" })
-	addMenuItem(currentMenu, "Go to end", func() { dispatch("END-OF-FILE", ed); update = true; mode = "searching" })
-	addMenuItem(currentMenu, "Increase Font", func() { dispatch("INCREASE-FONT", ed); update = true; mode = "searching" })
-
-	addMenuItem(currentMenu, "Decrease Font", func() { dispatch("DECREASE-FONT", ed); update = true; mode = "searching" })
-
-	addMenuItem(currentMenu, "Vertical Mode", func() { dispatch("VERTICAL-MODE", ed); update = true; mode = "searching" })
-
-	addMenuItem(currentMenu, "Horizontal Mode", func() { dispatch("HORIZONTAL-MODE", ed); update = true; mode = "searching" })
-
-	addMenuItem(currentMenu, "Save file", func() { dispatch("SAVE-FILE", ed); update = true; mode = "searching" })
-
-	item := menu.MakeNodeShort("Switch Buffer", nil)
-	item.Function = func() {
-		buffMenu := menu.MakeNodeShort("Buffer Menu", nil)
-		for i, v := range ed.BufferList {
-			ii := i
-			addMenuItem(buffMenu, v.Data.FileName, func() { ed.ActiveBuffer = ed.BufferList[ii]; mode = "searching"; currentMenu = rootMenu; update = true })
-		}
-		currentMenu = buffMenu
-	}
-	menu.AppendNode(currentMenu, item)
-
+setup_menu()
 	log.Println("Init glfw")
 	if err := glfw.Init(); err != nil {
 		panic("failed to initialize glfw: " + err.Error())
