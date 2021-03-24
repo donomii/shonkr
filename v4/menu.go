@@ -3,7 +3,6 @@ package main
 import (
   "os"
    "github.com/donomii/menu"
-   	"runtime"
  )
 var rootMenu *menu.Node
 
@@ -13,7 +12,7 @@ func addMenuItem(currentMenu *menu.Node, menuText string, f func()) {
 	menu.AppendNode(currentMenu, item)
 }
 
-func setup_menu(){ runtime
+func setup_menu(){ 
 	currentMenu = menu.MakeNodeShort("Main Menu", nil)
 	rootMenu = currentMenu
 	addMenuItem(currentMenu, "Go to start", func() { dispatch("START-OF-FILE", ed); update = true; mode = "searching" })
