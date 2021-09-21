@@ -7,7 +7,7 @@ import (
 
 	"unicode"
 
-	"github.com/donomii/glim"
+	glim "../../glim"
 
 	//"github.com/mitchellh/go-homedir"
 	"fmt"

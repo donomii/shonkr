@@ -4,7 +4,8 @@ package main
 import (
 	"runtime/debug"
 
-	"github.com/donomii/glim"
+	//"github.com/donomii/glim"
+	glim "../../glim"
 
 	"fmt"
 
@@ -65,7 +66,7 @@ func renderEd(w, h int) {
 
 			log.Println("Render paragraph", string(displayText))
 
-			ed.ActiveBuffer.Formatter.FontSize = 32
+			//ed.ActiveBuffer.Formatter.FontSize = 32
 			glim.RenderPara(ed.ActiveBuffer.Formatter,
 				0, 0, 0, 0,
 				w, h, w, h,

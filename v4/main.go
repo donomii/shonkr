@@ -1,7 +1,6 @@
 package main
 
 import (
-
 	"flag"
 	"fmt"
 	"strconv"
@@ -9,14 +8,15 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/donomii/glim"
+	//"github.com/donomii/glim"
+	glim "../../glim"
 	"github.com/donomii/menu"
 
 	"io/ioutil"
 	"log"
 
 	"github.com/go-gl/gl/v2.1/gl"
-	"github.com/go-gl/glfw/v3.1/glfw"
+	"github.com/go-gl/glfw/v3.3/glfw"
 )
 
 func init() { runtime.LockOSThread() }
@@ -47,7 +47,6 @@ func Seq(min, max int) []int {
 	return a
 }
 
-
 func handleKeys(window *glfw.Window) {
 	window.SetKeyCallback(func(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
 
@@ -57,7 +56,7 @@ func handleKeys(window *glfw.Window) {
 				if mode == "menu" {
 					mode = ""
 				} else {
-					currentMenu =  rootMenu
+					currentMenu = rootMenu
 					mode = "menu"
 				}
 				//os.Exit(0)
@@ -138,7 +137,6 @@ func handleKeys(window *glfw.Window) {
 	})
 }
 
-
 func main() {
 	var doLogs bool
 	flag.BoolVar(&doLogs, "debug", false, "Display logging information")
@@ -155,7 +153,7 @@ func main() {
 		log.SetOutput(ioutil.Discard)
 	}
 
-setup_menu()
+	setup_menu()
 	log.Println("Init glfw")
 	if err := glfw.Init(); err != nil {
 		panic("failed to initialize glfw: " + err.Error())
@@ -184,7 +182,7 @@ setup_menu()
 	//Create a text formatter.  This controls the appearance of the text, e.g. colour, size, layout
 	form = glim.NewFormatter()
 	ed.ActiveBuffer.Formatter = form
-	SetFont(ed.ActiveBuffer, 16)
+	SetFont(ed.ActiveBuffer, 8)
 	log.Println("Set up handlers")
 	handleKeys(window)
 
