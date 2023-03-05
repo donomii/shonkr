@@ -181,6 +181,7 @@ func main() {
 	ed = NewEditor()
 	//Create a text formatter.  This controls the appearance of the text, e.g. colour, size, layout
 	form = glim.NewFormatter()
+	form.Colour = &glim.RGBA{255, 255, 255, 255}
 	ed.ActiveBuffer.Formatter = form
 	SetFont(ed.ActiveBuffer, 8)
 	log.Println("Set up handlers")
