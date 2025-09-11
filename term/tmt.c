@@ -538,11 +538,12 @@ void callback(tmt_msg_t m, TMT *vt, const void *a, void *p) {
 
 TMT * terminal_open() {
     TMT *vt = tmt_open(2, 10, callback, NULL, NULL);
-    if (!vt)
-            return perror("could not allocate terminal"), EXIT_FAILURE;
-
-    return vt;
+    if (!vt){
+        perror("could not allocate terminal");
+        return NULL;
     }
+    return vt;
+}
 
 
 
@@ -550,6 +551,5 @@ wchar_t terminal_char(TMT *vt, int x, int y) {
      TMTLINE * line = vt->screen.lines[y];
     return line->chars[x].c;
 }
-
 
 

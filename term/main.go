@@ -1,3 +1,6 @@
+//go:build legacy
+// +build legacy
+
 package main
 
 import (
@@ -9,15 +12,12 @@ import (
 	"io/ioutil"
 	"runtime"
 
-	"golang.org/x/image/font/gofont/goregular"
-
 	//"unsafe"
 
 	"time"
 
 	"github.com/go-gl/gl/v3.2-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
-	"github.com/golang-ui/nuklear/nk"
 	"github.com/xlab/closer"
 
 	//"text/scanner"
@@ -34,10 +34,7 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/donomii/glim"
-	"github.com/liamg/aminal/config"
-	"github.com/liamg/aminal/platform"
-	"github.com/liamg/aminal/terminal"
-	"github.com/riywo/loginshell"
+
 	"go.uber.org/zap"
 )
 
@@ -56,16 +53,8 @@ var lastSelect string
 var workerChan chan string
 var needsRedraw bool
 var useAminal bool = true
-var atlas *nk.FontAtlas
-var sansFont *nk.Font
 
-type Option uint8
-
-type State struct {
-	bgColor nk.Color
-	prop    int32
-	opt     Option
-}
+// Nuklear removed; State now defined in gui.go for our simple UI
 
 type UserConfig struct {
 	Red, Green, Blue int
@@ -76,7 +65,7 @@ var winHeight = 900
 var ed *GlobalConfig
 var confFile string
 
-//var stdinQ, stdoutQ, stderrQ,
+// var stdinQ, stdoutQ, stderrQ,
 var shellIn, shellOut chan []byte
 
 // Arrange that main.main runs on main thread.
@@ -87,9 +76,9 @@ func init() {
 
 var pic []uint8
 var picBytes []byte
-var aminalTerm *terminal.Terminal
+var aminalTerm *Terminal
 
-func startAminal() *terminal.Terminal {
+func startAminal() *Terminal {
 	conf := getConfig()
 	logger, err := getLogger(conf)
 	if err != nil {
@@ -98,34 +87,18 @@ func startAminal() *terminal.Terminal {
 	}
 	defer logger.Sync()
 
-	logger.Infof("Allocating pty...")
-
-	pty, err := platform.NewPty(80, 25)
-	if err != nil {
-		logger.Fatalf("Failed to allocate pty: %s", err)
-	}
+	logger.Infof("Starting simple terminal...")
 
 	shellStr := conf.Shell
 	if shellStr == "" {
-		loginShell, err := loginshell.Shell()
-		if err != nil {
-			logger.Fatalf("Failed to ascertain your shell: %s", err)
-		}
-		shellStr = loginShell
+		shellStr = "/bin/bash"
 	}
 
-	os.Setenv("TERM", "xterm-256color") // controversial! easier than installing terminfo everywhere, but obviously going to be slightly different to xterm functionality, so we'll see...
+	os.Setenv("TERM", "xterm-256color")
 	os.Setenv("COLORTERM", "truecolor")
 
-	guestProcess, err := pty.CreateGuestProcess(shellStr)
-	if err != nil {
-		pty.Close()
-		logger.Fatalf("Failed to start your shell: %s", err)
-	}
-	defer guestProcess.Close()
-
 	logger.Infof("Creating terminal...")
-	terminal := terminal.New(pty, logger, conf)
+	terminal := NewTerminal(shellStr, logger, conf)
 	x, y := terminal.GetSize()
 	fmt.Printf("Size %v,%v", x, y)
 	terminal.SetSize(80, 24)
@@ -136,43 +109,19 @@ func startAminal() *terminal.Terminal {
 		for {
 			err := terminal.Read()
 			if err != nil {
-				log.Printf("Read from pty failed: %s", err)
+				log.Printf("Read from terminal failed: %s", err)
 			}
+			time.Sleep(10 * time.Millisecond)
 		}
-
 	}()
 
-	/*
-		terminal.WriteReturn()
-		terminal.WriteReturn()
-		terminal.WriteReturn()
-		terminal.Write([]byte("l"))
-		terminal.Write([]byte("s"))
-		terminal.Write([]byte("\n"))
-		terminal.WriteReturn()
-		terminal.ActiveBuffer().Write('H')
-		time.Sleep(1 * time.Second)
-		lines := terminal.GetVisibleLines()
-		lineCount := int(terminal.ActiveBuffer().ViewHeight())
-		colCount := int(terminal.ActiveBuffer().ViewWidth())
-		fmt.Printf("%vx%v, %+v", colCount, lineCount, lines)
-		for _, line := range lines {
-			for _, cell := range line.Cells() {
-				fmt.Print(string(cell.Rune()))
-			}
-			fmt.Println()
-		}
-	*/
-	fmt.Println("Aminal startup complete")
+	fmt.Println("Terminal startup complete")
 	return terminal
 }
 
-func aminalString(term *terminal.Terminal) string {
+func aminalString(term *Terminal) string {
 	var out string
 	lines := term.GetVisibleLines()
-	//lineCount := int(term.ActiveBuffer().ViewHeight())
-	//colCount := int(term.ActiveBuffer().ViewWidth())
-	//fmt.Printf("%vx%v, %+v", colCount, lineCount, lines)
 	for _, line := range lines {
 		for _, cell := range line.Cells() {
 			out = out + string(cell.Rune())
@@ -222,11 +171,10 @@ func main() {
 	ed.ActiveBuffer.Formatter = form
 	SetFont(ed.ActiveBuffer, 12)
 
-	//Nuklear
-
 	if err := glfw.Init(); err != nil {
 		closer.Fatalln(err)
 	}
+	// Request an OpenGL 3.2 Core context (macOS-compatible)
 	glfw.WindowHint(glfw.ContextVersionMajor, 3)
 	glfw.WindowHint(glfw.ContextVersionMinor, 2)
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
@@ -248,14 +196,23 @@ func main() {
 			log.Printf("key val: %#b", val)
 			b := mask & val
 			log.Printf("key byte: %#b", b)
-			shellIn <- []byte{b}
-
+			if useAminal && aminalTerm != nil {
+				aminalTerm.Write([]byte{b})
+			} else {
+				shellIn <- []byte{b}
+			}
 		}
 
 		if action == 0 && mods == 0 {
 			switch key {
 			case 257:
-				go func() { shellIn <- []byte("\n") }()
+				go func() {
+					if useAminal && aminalTerm != nil {
+						aminalTerm.Write([]byte("\n"))
+					} else {
+						shellIn <- []byte("\n")
+					}
+				}()
 			case 265:
 				go func() { shellIn <- []byte("\u001b[A") }()
 			case 264:
@@ -279,7 +236,11 @@ func main() {
 
 		text := fmt.Sprintf("%c", char)
 		log.Printf("Text input: %v\n", text)
-		shellIn <- []byte(text)
+		if useAminal && aminalTerm != nil {
+			aminalTerm.Write([]byte(text))
+		} else {
+			shellIn <- []byte(text)
+		}
 
 	})
 
@@ -287,17 +248,7 @@ func main() {
 		closer.Fatalln("opengl: init failed:", err)
 	}
 
-	ctx := nk.NkPlatformInit(win, nk.PlatformInstallCallbacks)
-
-	atlas = nk.NewFontAtlas()
-	nk.NkFontStashBegin(&atlas)
-	sansFont = nk.NkFontAtlasAddFromBytes(atlas, goregular.TTF, 16, nil)
-	nk.NkFontStashEnd()
-	if sansFont != nil {
-		nk.NkStyleSetFont(ctx, sansFont.Handle())
-	} else {
-		panic("Font load failed")
-	}
+	var ctx interface{} = nil
 
 	exitC := make(chan struct{}, 1)
 	doneC := make(chan struct{}, 1)
@@ -306,9 +257,7 @@ func main() {
 		<-doneC
 	})
 
-	state := &State{
-		bgColor: nk.NkRgba(255, 255, 255, 255),
-	}
+	state := &State{}
 
 	go func() {
 		for {
@@ -337,7 +286,6 @@ func main() {
 
 		case <-exitC:
 			fmt.Println("Shutdown")
-			nk.NkPlatformShutdown()
 			glfw.Terminate()
 			fpsTicker.Stop()
 			close(doneC)
@@ -375,7 +323,7 @@ func main() {
 
 //Aminal support functions
 
-func getLogger(conf *config.Config) (*zap.SugaredLogger, error) {
+func getLogger(conf *Config) (*zap.SugaredLogger, error) {
 
 	var logger *zap.Logger
 	var err error
@@ -398,7 +346,7 @@ func getActuallyProvidedFlags() map[string]bool {
 	return result
 }
 
-func getConfig() *config.Config {
+func getConfig() *Config {
 	showVersion := false
 	ignoreConfig := false
 	shell := ""
@@ -416,9 +364,9 @@ func getConfig() *config.Config {
 	}
 	actuallyProvidedFlags := getActuallyProvidedFlags()
 
-	var conf *config.Config
+	var conf *Config
 	if ignoreConfig {
-		conf = &config.DefaultConfig
+		conf = &DefaultConfig
 	} else {
 		conf = loadConfigFile()
 	}
@@ -439,17 +387,17 @@ func getConfig() *config.Config {
 	return conf
 }
 
-func loadConfigFile() *config.Config {
+func loadConfigFile() *Config {
 
 	usr, err := user.Current()
 	if err != nil {
 		fmt.Printf("Failed to get current user information: %s\n", err)
-		return &config.DefaultConfig
+		return &DefaultConfig
 	}
 
 	home := usr.HomeDir
 	if home == "" {
-		return &config.DefaultConfig
+		return &DefaultConfig
 	}
 
 	places := []string{}
@@ -459,7 +407,7 @@ func loadConfigFile() *config.Config {
 
 	for _, place := range places {
 		if b, err := ioutil.ReadFile(place); err == nil {
-			if c, err := config.Parse(b); err == nil {
+			if c, err := Parse(b); err == nil {
 				return c
 			}
 
@@ -467,7 +415,7 @@ func loadConfigFile() *config.Config {
 		}
 	}
 
-	if b, err := config.DefaultConfig.Encode(); err != nil {
+	if b, err := DefaultConfig.Encode(); err != nil {
 		fmt.Printf("Failed to encode config file: %s\n", err)
 	} else {
 		err = os.MkdirAll(filepath.Dir(places[0]), 0744)
@@ -480,5 +428,5 @@ func loadConfigFile() *config.Config {
 		}
 	}
 
-	return &config.DefaultConfig
+	return &DefaultConfig
 }

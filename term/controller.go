@@ -1,3 +1,4 @@
+//go:build !VR
 // +build !VR
 
 package main
@@ -52,8 +53,8 @@ func NewBuffer() *Buffer {
 	return &buf
 }
 
-//Create a new buffer, make it active and set its contents.  file name is required for a unique key to index it
-//If a buffer called fileName already exists, its data will be replaced with the new data
+// Create a new buffer, make it active and set its contents.  file name is required for a unique key to index it
+// If a buffer called fileName already exists, its data will be replaced with the new data
 func AddActiveBuffer(gc *GlobalConfig, text string, fileName string) {
 	buff := NewBuffer()
 	_, fbuff := FindByFileName(gc, fileName)
@@ -95,7 +96,7 @@ func Log2Buff(gc *GlobalConfig, s string) {
 	gc.StatusBuffer.Data.Text = s
 }
 
-//Does a page up, by searching backwards util the old top line is off the bottom of the screen
+// Does a page up, by searching backwards util the old top line is off the bottom of the screen
 func SearchBackPage(txtBuf string, orig_f *glim.FormatParams, screenWidth, screenHeight int) int {
 	input := *orig_f
 	x := input.StartLinePos
@@ -267,7 +268,7 @@ func ActiveBufferInsert(gc *GlobalConfig, txt string) {
 		gc.ActiveBuffer.Formatter.Cursor = 0
 	}
 	log.Printf("Inserting at %v, length %v\n", gc.ActiveBuffer.Formatter.Cursor, len(txt))
-	gc.ActiveBuffer.Data.Text = fmt.Sprintf("%s%s%s", gc.ActiveBuffer.Data.Text[:ed.ActiveBuffer.Formatter.Cursor], txt, gc.ActiveBuffer.Data.Text[ed.ActiveBuffer.Formatter.Cursor:])
+	gc.ActiveBuffer.Data.Text = fmt.Sprintf("%s%s%s", gc.ActiveBuffer.Data.Text[:gc.ActiveBuffer.Formatter.Cursor], txt, gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.Cursor:])
 	gc.ActiveBuffer.Formatter.Cursor = gc.ActiveBuffer.Formatter.Cursor + len(txt)
 	log.Printf("Cursor now %v\n", gc.ActiveBuffer.Formatter.Cursor)
 }
@@ -431,7 +432,7 @@ func PasteFromClipBoard(gc *GlobalConfig) {
 	ActiveBufferInsert(gc, text)
 }
 
-//This function carries out commands.  It is the interface between your scripting, and the actual engine operation
+// This function carries out commands.  It is the interface between your scripting, and the actual engine operation
 func dispatch(command string, gc *GlobalConfig) {
 	switch command {
 	case "CLEAR-CACHES":
@@ -480,7 +481,7 @@ func dispatch(command string, gc *GlobalConfig) {
 	case "TOGGLE-VERTICAL-MODE":
 		ToggleVerticalMode(gc)
 	case "PASTE-FROM-CLIPBOARD":
-		PasteFromClipBoard(ed)
+		PasteFromClipBoard(gc)
 	case "COPY-TO-CLIPBOARD":
 		clipboard.WriteAll(gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.SelectStart : gc.ActiveBuffer.Formatter.SelectEnd+1])
 	case "CUT-TO-CLIPBOARD":

@@ -8,8 +8,7 @@ import (
 	"runtime"
 	"time"
 
-	//"github.com/donomii/glim"
-	glim "../../glim"
+	"github.com/donomii/glim"
 	"github.com/donomii/menu"
 
 	"io/ioutil"

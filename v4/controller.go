@@ -7,7 +7,7 @@ import (
 
 	"unicode"
 
-	glim "../../glim"
+	"github.com/donomii/glim"
 
 	//"github.com/mitchellh/go-homedir"
 	"fmt"
@@ -267,7 +267,7 @@ func ActiveBufferInsert(gc *GlobalConfig, txt string) {
 		gc.ActiveBuffer.Formatter.Cursor = 0
 	}
 	log.Printf("Inserting at %v, length %v\n", gc.ActiveBuffer.Formatter.Cursor, len(txt))
-	gc.ActiveBuffer.Data.Text = fmt.Sprintf("%s%s%s", gc.ActiveBuffer.Data.Text[:ed.ActiveBuffer.Formatter.Cursor], txt, gc.ActiveBuffer.Data.Text[ed.ActiveBuffer.Formatter.Cursor:])
+	gc.ActiveBuffer.Data.Text = fmt.Sprintf("%s%s%s", gc.ActiveBuffer.Data.Text[:gc.ActiveBuffer.Formatter.Cursor], txt, gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.Cursor:])
 	gc.ActiveBuffer.Formatter.Cursor = gc.ActiveBuffer.Formatter.Cursor + len(txt)
 	log.Printf("Cursor now %v\n", gc.ActiveBuffer.Formatter.Cursor)
 }
@@ -438,7 +438,7 @@ func dispatch(command string, gc *GlobalConfig) {
 	case "TOGGLE-VERTICAL-MODE":
 		ToggleVerticalMode(gc)
 	case "PASTE-FROM-CLIPBOARD":
-		PasteFromClipBoard(ed)
+		PasteFromClipBoard(gc)
 	case "COPY-TO-CLIPBOARD":
 		clipboard.WriteAll(gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.SelectStart : gc.ActiveBuffer.Formatter.SelectEnd+1])
 	case "CUT-TO-CLIPBOARD":

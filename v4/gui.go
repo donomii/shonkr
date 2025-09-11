@@ -4,8 +4,7 @@ package main
 import (
 	"runtime/debug"
 
-	//"github.com/donomii/glim"
-	glim "../../glim"
+	"github.com/donomii/glim"
 
 	"fmt"
 
