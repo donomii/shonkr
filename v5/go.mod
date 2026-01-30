@@ -13,7 +13,7 @@ require (
 	github.com/golang-ui/nuklear v0.0.0-20231115163627-2440a671efc5
 	github.com/xlab/closer v1.1.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/crypto v0.42.0
+	golang.org/x/crypto v0.45.0
 	golang.org/x/image v0.31.0
 )
 
@@ -24,5 +24,5 @@ require (
 	github.com/xlab/android-go v0.0.0-20221106204035-3cc54d5032fa // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/mobile v0.0.0-20250813145510-f12310a0cfd9 // indirect
-	golang.org/x/sys v0.36.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
 )
