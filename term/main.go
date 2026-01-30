@@ -1,432 +1,281 @@
-//go:build legacy
-// +build legacy
-
 package main
 
 import (
-	"bytes"
-	"os"
-	"runtime/debug"
-
 	"fmt"
-	"io/ioutil"
+	"log"
+	"os"
 	"runtime"
-
-	//"unsafe"
-
 	"time"
 
+	"github.com/atotto/clipboard"
+	"github.com/donomii/glim"
 	"github.com/go-gl/gl/v3.2-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
-	"github.com/xlab/closer"
-
-	//"text/scanner"
-
-	"flag"
-
-	"log"
-
-	"path/filepath"
-
-	"os/user"
-
-	"net/http"
-	_ "net/http/pprof"
-
-	"github.com/donomii/glim"
-
-	"go.uber.org/zap"
 )
-
-var shell string
-var active bool
-var myMenu Menu
-
-type Menu []string
-
-var form *glim.FormatParams
-var lasttime float64
-var autoSync bool
-var ui bool
-var repos [][]string
-var lastSelect string
-var workerChan chan string
-var needsRedraw bool
-var useAminal bool = true
-
-// Nuklear removed; State now defined in gui.go for our simple UI
-
-type UserConfig struct {
-	Red, Green, Blue int
-}
 
 var winWidth = 900
 var winHeight = 900
+var needsRedraw = true
+var active = false
 var ed *GlobalConfig
-var confFile string
-
-// var stdinQ, stdoutQ, stderrQ,
-var shellIn, shellOut chan []byte
-
-// Arrange that main.main runs on main thread.
-func init() {
-	runtime.LockOSThread()
-	debug.SetGCPercent(-1)
-}
-
+var form *glim.FormatParams
 var pic []uint8
 var picBytes []byte
-var aminalTerm *Terminal
 
-func startAminal() *Terminal {
-	conf := getConfig()
-	logger, err := getLogger(conf)
-	if err != nil {
-		fmt.Printf("Failed to create logger: %s\n", err)
-		os.Exit(1)
-	}
-	defer logger.Sync()
+// Terminal backend
+var term *TerminalBackend
 
-	logger.Infof("Starting simple terminal...")
+// Renderer for OpenGL
+var rdr Renderer
 
-	shellStr := conf.Shell
-	if shellStr == "" {
-		shellStr = "/bin/bash"
-	}
+// Renderer is defined in gui.go
+var shellIn chan []byte
+var mouseX, mouseY int
+var mouseDown bool
 
-	os.Setenv("TERM", "xterm-256color")
-	os.Setenv("COLORTERM", "truecolor")
-
-	logger.Infof("Creating terminal...")
-	terminal := NewTerminal(shellStr, logger, conf)
-	x, y := terminal.GetSize()
-	fmt.Printf("Size %v,%v", x, y)
-	terminal.SetSize(80, 24)
-	x, y = terminal.GetSize()
-	fmt.Printf("Size %v,%v", x, y)
-
-	go func() {
-		for {
-			err := terminal.Read()
-			if err != nil {
-				log.Printf("Read from terminal failed: %s", err)
-			}
-			time.Sleep(10 * time.Millisecond)
-		}
-	}()
-
-	fmt.Println("Terminal startup complete")
-	return terminal
-}
-
-func aminalString(term *Terminal) string {
-	var out string
-	lines := term.GetVisibleLines()
-	for _, line := range lines {
-		for _, cell := range line.Cells() {
-			out = out + string(cell.Rune())
-		}
-		out = out + "\n"
-	}
-	return out
+func init() {
+	runtime.LockOSThread()
 }
 
 func main() {
+	fmt.Println("Starting Shonkr Terminal...")
 
-	go func() {
-		log.Println(http.ListenAndServe("localhost:6060", nil))
-	}()
-	pic = make([]uint8, 3000*3000*4)
-	picBytes = make([]byte, 3000*3000*4)
-	var doLogs bool
-	flag.BoolVar(&doLogs, "debug", false, "Display logging information")
-	flag.BoolVar(&useAminal, "aminal", false, "Start aminal termal decoder")
-	flag.StringVar(&shell, "shell", "/bin/bash", "The command shell to run")
-	flag.Parse()
-	if !doLogs {
-		log.SetFlags(0)
-		log.SetOutput(ioutil.Discard)
-	}
+	pic = make([]uint8, winWidth*winHeight*4)
+	picBytes = make([]byte, winWidth*winHeight*4)
 
-	start_tmt()
-	if useAminal {
-		go func() {
-			aminalTerm = startAminal()
-		}()
-	}
-	//time.Sleep(1 * time.Second)
-	os.Setenv("TERM", "dumb")
-	os.Setenv("LINES", "24")
-	os.Setenv("COLUMNS", "80")
-	os.Setenv("PS1", ">")
-
-	shellIn, shellOut = startShell(shell)
-
-	foreColour = &glim.RGBA{255, 255, 255, 255}
-	backColour = &glim.RGBA{0, 0, 0, 255}
-
+	// Initialize editor
 	ed = NewEditor()
-	//Create a text formatter.  This controls the appearance of the text, e.g. colour, size, layout
 	form = glim.NewFormatter()
 	ed.ActiveBuffer.Formatter = form
 	SetFont(ed.ActiveBuffer, 12)
 
-	if err := glfw.Init(); err != nil {
-		closer.Fatalln(err)
+	// Create terminal backend
+	term = NewTerminalBackend(80, 24)
+	if term == nil {
+		log.Fatal("Failed to create terminal backend")
 	}
-	// Request an OpenGL 3.2 Core context (macOS-compatible)
+
+	// Start shell
+	shellPath := os.Getenv("SHELL")
+	if shellPath == "" {
+		shellPath = "/bin/bash"
+	}
+	shellIn = make(chan []byte, 100)
+
+	os.Setenv("TERM", "xterm-256color")
+	os.Setenv("COLORTERM", "truecolor")
+	os.Setenv("PS1", "shonkr> ")
+
+	err := startShellWithBackend(shellPath, term)
+	if err != nil {
+		log.Printf("Failed to start shell: %v", err)
+	}
+
+	// Initialize GLFW
+	if err := glfw.Init(); err != nil {
+		log.Fatal(err)
+	}
+	defer glfw.Terminate()
+
 	glfw.WindowHint(glfw.ContextVersionMajor, 3)
 	glfw.WindowHint(glfw.ContextVersionMinor, 2)
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
-	win, err := glfw.CreateWindow(winWidth, winHeight, "ShonkTerm", nil, nil)
+	glfw.WindowHint(glfw.Resizable, glfw.True)
+
+	win, err := glfw.CreateWindow(winWidth, winHeight, "Shonkr Terminal", nil, nil)
 	if err != nil {
-		closer.Fatalln(err)
+		log.Fatal(err)
 	}
 	win.MakeContextCurrent()
 
+	// Key handling
 	win.SetKeyCallback(func(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
-
-		log.Printf("Got key %c,%v,%v,%v", key, key, mods, action)
-
-		if mods == 2 && action == 1 && key != 341 {
-			mask := ^byte(64 + 128)
-			log.Printf("key mask: %#b", mask)
-			val := byte(key)
-			log.Printf("key val: %#b", val)
-			b := mask & val
-			log.Printf("key byte: %#b", b)
-			if useAminal && aminalTerm != nil {
-				aminalTerm.Write([]byte{b})
-			} else {
-				shellIn <- []byte{b}
-			}
-		}
-
-		if action == 0 && mods == 0 {
-			switch key {
-			case 257:
-				go func() {
-					if useAminal && aminalTerm != nil {
-						aminalTerm.Write([]byte("\n"))
-					} else {
-						shellIn <- []byte("\n")
-					}
-				}()
-			case 265:
-				go func() { shellIn <- []byte("\u001b[A") }()
-			case 264:
-				go func() { shellIn <- []byte("\u001b[B") }()
-			case 262:
-				go func() { shellIn <- []byte("\u001b[C") }()
-			case 263:
-				go func() { shellIn <- []byte("\u001b[D") }()
-			case 256:
-				go func() { shellIn <- []byte("\u001b") }()
-			case 259:
-				go func() { shellIn <- []byte{127} }()
-			case 258:
-				go func() { shellIn <- []byte("\t") }()
-			}
-		}
-
+		handleKey(key, scancode, action, mods)
 	})
 
 	win.SetCharModsCallback(func(w *glfw.Window, char rune, mods glfw.ModifierKey) {
-
-		text := fmt.Sprintf("%c", char)
-		log.Printf("Text input: %v\n", text)
-		if useAminal && aminalTerm != nil {
-			aminalTerm.Write([]byte(text))
-		} else {
+		text := string(char)
+		if shellIn != nil {
 			shellIn <- []byte(text)
 		}
+	})
 
+	win.SetCursorPosCallback(func(w *glfw.Window, xpos float64, ypos float64) {
+		mouseX = int(xpos)
+		mouseY = int(ypos)
+	})
+
+	win.SetMouseButtonCallback(func(w *glfw.Window, button glfw.MouseButton, action glfw.Action, mods glfw.ModifierKey) {
+		if button == glfw.MouseButtonLeft {
+			mouseDown = (action != glfw.Release)
+		}
 	})
 
 	if err := gl.Init(); err != nil {
-		closer.Fatalln("opengl: init failed:", err)
+		log.Fatal("opengl: init failed:", err)
 	}
 
-	var ctx interface{} = nil
-
-	exitC := make(chan struct{}, 1)
-	doneC := make(chan struct{}, 1)
-	closer.Bind(func() {
-		close(exitC)
-		<-doneC
-	})
-
-	state := &State{}
-
-	go func() {
-		for {
-			if active {
-				log.Println("Waiting for data from stdoutQ")
-				data := <-shellOut
-				log.Println("Got data", string(data))
-				if runtime.GOOS == "windows" {
-					data = bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1)
-				}
-				tmt_process_text(vt, string(data))
-				SetBuffer(ed.ActiveBuffer, tmt_get_screen(vt))
-				needsRedraw = true
-			}
-		}
-	}()
-
-	fpsTicker := time.NewTicker(time.Second / 30)
-
-	SetFont(ed.ActiveBuffer, 12)
-	log.Println("Starting main loop")
+	active = true
 	needsRedraw = true
 
-	for {
-		select {
+	// Main loop
+	for !win.ShouldClose() {
+		glfw.PollEvents()
+		winWidth, winHeight = win.GetSize()
 
-		case <-exitC:
-			fmt.Println("Shutdown")
-			glfw.Terminate()
-			fpsTicker.Stop()
-			close(doneC)
-			return
-		case <-fpsTicker.C:
-			if win.ShouldClose() {
-				close(exitC)
-				continue
+		if needsRedraw {
+			renderTerminal()
+			win.SwapBuffers()
+			needsRedraw = false
+		}
+
+		time.Sleep(16 * time.Millisecond) // ~60 FPS
+	}
+
+	fmt.Println("Shonkr Terminal Closed")
+}
+
+func handleKey(key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
+	if action == glfw.Press || action == glfw.Repeat {
+		switch key {
+		case glfw.KeyEnter:
+			if shellIn != nil {
+				shellIn <- []byte("\n")
 			}
-			glfw.PollEvents()
-			winWidth, winHeight = win.GetSize()
-			if needsRedraw {
-				lasttime = glfw.GetTime()
+		case glfw.KeyBackspace:
+			if shellIn != nil {
+				shellIn <- []byte{127}
+			}
+		case glfw.KeyTab:
+			if shellIn != nil {
+				shellIn <- []byte("\t")
+			}
+		case glfw.KeyEscape:
+			if shellIn != nil {
+				shellIn <- []byte("\x1b")
+			}
+		case glfw.KeyUp:
+			if shellIn != nil {
+				shellIn <- []byte("\x1b[A")
+			}
+		case glfw.KeyDown:
+			if shellIn != nil {
+				shellIn <- []byte("\x1b[B")
+			}
+		case glfw.KeyLeft:
+			if shellIn != nil {
+				shellIn <- []byte("\x1b[D")
+			}
+		case glfw.KeyRight:
+			if shellIn != nil {
+				shellIn <- []byte("\x1b[C")
+			}
+		}
+	}
 
-				gfxMain(win, ctx, state)
-				needsRedraw = false
-
-				active = true
-
-			} else {
-				TARGET_FPS := 10.0
-				if glfw.GetTime() < lasttime+1.0/TARGET_FPS {
-					time.Sleep(10 * time.Millisecond)
-					runtime.GC()
-				} else {
-					needsRedraw = true
+	// Handle Ctrl combinations
+	if action == glfw.Press {
+		// Treat Command (macOS) or Control (others) as "app shortcuts"
+		appMod := (mods&glfw.ModSuper) != 0 || (mods&glfw.ModControl) != 0
+		if appMod {
+			switch key {
+			case glfw.KeyA: // Select all
+				if ed != nil && ed.ActiveBuffer != nil {
+					txt := term.String()
+					SetBuffer(ed.ActiveBuffer, txt)
+					ed.ActiveBuffer.Formatter.SelectStart = 0
+					ed.ActiveBuffer.Formatter.SelectEnd = len(ed.ActiveBuffer.Data.Text) - 1
+				}
+			case glfw.KeyC: // Copy selection
+				if ed != nil && ed.ActiveBuffer != nil {
+					if ed.ActiveBuffer.Formatter.SelectStart < 0 || ed.ActiveBuffer.Formatter.SelectEnd <= ed.ActiveBuffer.Formatter.SelectStart {
+						// If nothing selected, copy all
+						ed.ActiveBuffer.Formatter.SelectStart = 0
+						ed.ActiveBuffer.Formatter.SelectEnd = len(ed.ActiveBuffer.Data.Text) - 1
+					}
+					dispatch("COPY-TO-CLIPBOARD", ed)
+				}
+			case glfw.KeyV: // Paste to shell
+				if shellIn != nil {
+					if txt, err := clipboard.ReadAll(); err == nil {
+						shellIn <- []byte(txt)
+					}
+				}
+			case glfw.KeyX: // Cut not meaningful; copy
+				if ed != nil && ed.ActiveBuffer != nil {
+					dispatch("COPY-TO-CLIPBOARD", ed)
+				}
+			default:
+				// Not an app shortcut we handle; fall through to send Ctrl key to shell
+			}
+			return
+		}
+		// Raw Ctrl key to shell (e.g., Ctrl+C)
+		if (mods & glfw.ModControl) != 0 {
+			if key >= glfw.KeyA && key <= glfw.KeyZ {
+				ctrl_char := byte(key - glfw.KeyA + 1)
+				if shellIn != nil {
+					shellIn <- []byte{ctrl_char}
 				}
 			}
+		}
+	}
+}
 
+func renderTerminal() {
+	gl.Viewport(0, 0, int32(winWidth), int32(winHeight))
+	gl.ClearColor(0.0, 0.0, 0.0, 1.0)
+	gl.Clear(gl.COLOR_BUFFER_BIT)
+
+	if ed != nil && ed.ActiveBuffer != nil && term != nil {
+		// Clear graphics buffer
+		size := winWidth * winHeight * 4
+		if len(pic) < size {
+			pic = make([]uint8, size)
 		}
 
-	}
+		// Fill with black background
+		for i := 0; i < size; i += 4 {
+			pic[i] = 0     // R
+			pic[i+1] = 0   // G
+			pic[i+2] = 0   // B
+			pic[i+3] = 255 // A
+		}
 
-}
+		// Get terminal text and sync editor buffer to enable selection/copy
+		displayText := term.String()
+		if ed != nil && ed.ActiveBuffer != nil {
+			SetBuffer(ed.ActiveBuffer, displayText)
+		}
 
-//Aminal support functions
-
-func getLogger(conf *Config) (*zap.SugaredLogger, error) {
-
-	var logger *zap.Logger
-	var err error
-
-	logger, err = zap.NewDevelopment()
-
-	if err != nil {
-		return nil, fmt.Errorf("Failed to create logger: %s", err)
-	}
-	return logger.Sugar(), nil
-}
-
-func getActuallyProvidedFlags() map[string]bool {
-	result := make(map[string]bool)
-
-	flag.Visit(func(f *flag.Flag) {
-		result[f.Name] = true
-	})
-
-	return result
-}
-
-func getConfig() *Config {
-	showVersion := false
-	ignoreConfig := false
-	shell := ""
-	debugMode := false
-	slomo := false
-
-	if flag.Parsed() == false {
-		flag.BoolVar(&showVersion, "version", showVersion, "Output version information")
-		flag.BoolVar(&ignoreConfig, "ignore-config", ignoreConfig, "Ignore user config files and use defaults")
-		flag.StringVar(&shell, "shell", shell, "Specify the shell to use")
-		flag.BoolVar(&debugMode, "debug", debugMode, "Enable debug logging")
-		flag.BoolVar(&slomo, "slomo", slomo, "Render in slow motion (useful for debugging)")
-
-		flag.Parse() // actual parsing and fetching flags from the command line
-	}
-	actuallyProvidedFlags := getActuallyProvidedFlags()
-
-	var conf *Config
-	if ignoreConfig {
-		conf = &DefaultConfig
-	} else {
-		conf = loadConfigFile()
-	}
-
-	// Override values in the configuration file with the values specified in the command line, if any.
-	if actuallyProvidedFlags["shell"] {
-		conf.Shell = shell
-	}
-
-	if actuallyProvidedFlags["debug"] {
-		conf.DebugMode = debugMode
-	}
-
-	if actuallyProvidedFlags["slomo"] {
-		conf.Slomo = slomo
-	}
-
-	return conf
-}
-
-func loadConfigFile() *Config {
-
-	usr, err := user.Current()
-	if err != nil {
-		fmt.Printf("Failed to get current user information: %s\n", err)
-		return &DefaultConfig
-	}
-
-	home := usr.HomeDir
-	if home == "" {
-		return &DefaultConfig
-	}
-
-	places := []string{}
-
-	places = append(places, filepath.Join(home, ".config/aminal/config.toml"))
-	places = append(places, filepath.Join(home, ".aminal.toml"))
-
-	for _, place := range places {
-		if b, err := ioutil.ReadFile(place); err == nil {
-			if c, err := Parse(b); err == nil {
-				return c
+		// Render text
+		if len(displayText) > 0 {
+			form.Colour = &glim.RGBA{255, 255, 255, 255}
+			// Enable selection outlines and pass real mouse position (relative to text origin at 10,10)
+			ed.ActiveBuffer.Formatter.Outline = true
+			mx := mouseX - 10
+			my := mouseY - 10
+			if mx < 0 {
+				mx = 0
 			}
-
-			fmt.Printf("Invalid config at %s: %s\n", place, err)
-		}
-	}
-
-	if b, err := DefaultConfig.Encode(); err != nil {
-		fmt.Printf("Failed to encode config file: %s\n", err)
-	} else {
-		err = os.MkdirAll(filepath.Dir(places[0]), 0744)
-		if err != nil {
-			fmt.Printf("Failed to create config file directory: %s\n", err)
-		} else {
-			if err = ioutil.WriteFile(places[0], b, 0644); err != nil {
-				fmt.Printf("Failed to encode config file: %s\n", err)
+			if my < 0 {
+				my = 0
 			}
+			glim.RenderPara(form, 0, 0, 0, 0, winWidth, winHeight, winWidth, winHeight, mx, my, pic, displayText, false, true, true)
 		}
-	}
 
-	return &DefaultConfig
+		// Display the rendered buffer
+		renderBuffer()
+	}
+}
+
+func renderBuffer() {
+	// Use shared core-profile renderer
+	if err := rdr.Init(); err != nil {
+		log.Printf("renderer init failed: %v", err)
+		return
+	}
+	rdr.UpdateTexture(pic, winWidth, winHeight)
+	rdr.Draw()
 }
