@@ -125,7 +125,7 @@ func main() {
 		winWidth, winHeight = win.GetSize()
 
 		if needsRedraw {
-			renderTerminal()
+			renderTerminal(win)
 			win.SwapBuffers()
 			needsRedraw = false
 		}
@@ -223,8 +223,9 @@ func handleKey(key glfw.Key, scancode int, action glfw.Action, mods glfw.Modifie
 	}
 }
 
-func renderTerminal() {
-	gl.Viewport(0, 0, int32(winWidth), int32(winHeight))
+func renderTerminal(win *glfw.Window) {
+	fbWidth, fbHeight := win.GetFramebufferSize()
+	gl.Viewport(0, 0, int32(fbWidth), int32(fbHeight))
 	gl.ClearColor(0.0, 0.0, 0.0, 1.0)
 	gl.Clear(gl.COLOR_BUFFER_BIT)
 
