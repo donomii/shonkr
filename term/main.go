@@ -174,7 +174,7 @@ func updateTermSize() {
 	}
 
 	cols := winWidth / charW
-	rows := winHeight / charH
+	rows := (winHeight / charH) - 1
 
 	if cols < 1 {
 		cols = 1
