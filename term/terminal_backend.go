@@ -40,6 +40,14 @@ func (tb *TerminalBackend) Write(data []byte) (int, error) {
 	return tb.term.Write(data)
 }
 
+func (tb *TerminalBackend) Resize(cols, rows int) {
+	if tb.term != nil {
+		tb.term.Resize(cols, rows)
+		tb.width = cols
+		tb.height = rows
+	}
+}
+
 // GetSize returns the terminal dimensions
 func (tb *TerminalBackend) GetSize() (int, int) {
 	return tb.width, tb.height

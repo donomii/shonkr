@@ -33,6 +33,8 @@ var shellIn chan []byte
 var mouseX, mouseY int
 var mouseDown bool
 
+var pty *os.File
+
 func init() {
 	runtime.LockOSThread()
 }
@@ -66,7 +68,8 @@ func main() {
 	os.Setenv("COLORTERM", "truecolor")
 	os.Setenv("PS1", "shonkr> ")
 
-	err := startShellWithBackend(shellPath, term)
+	var err error
+	pty, err = startShellWithBackend(shellPath, term)
 	if err != nil {
 		log.Printf("Failed to start shell: %v", err)
 	}
@@ -123,9 +126,12 @@ func main() {
 	for !win.ShouldClose() {
 		glfw.PollEvents()
 		winWidth, winHeight = win.GetSize()
+		fbWidth, fbHeight := win.GetFramebufferSize()
+
+		updateTermSize()
 
 		if needsRedraw {
-			renderTerminal(win)
+			renderTerminal(fbWidth, fbHeight)
 			win.SwapBuffers()
 			needsRedraw = false
 		}
@@ -134,6 +140,52 @@ func main() {
 	}
 
 	fmt.Println("Shonkr Terminal Closed")
+}
+
+var lastWidth, lastHeight int
+
+func updateTermSize() {
+	if winWidth == 0 || winHeight == 0 {
+		return
+	}
+
+	if winWidth == lastWidth && winHeight == lastHeight {
+		return
+	}
+	lastWidth = winWidth
+	lastHeight = winHeight
+
+	fontSize := 12.0
+	if ed != nil && ed.ActiveBuffer != nil {
+		fontSize = ed.ActiveBuffer.Formatter.FontSize
+	}
+
+	w, _, lineHeight := glim.GetFontMetrics(fontSize, "M")
+	charW := w / 2
+	charH := lineHeight
+
+	if charW == 0 || charH == 0 {
+		// Avoid divide by zero
+		return
+	}
+
+	cols := winWidth / charW
+	rows := winHeight / charH
+
+	if cols < 1 {
+		cols = 1
+	}
+	if rows < 1 {
+		rows = 1
+	}
+
+	if term != nil {
+		term.SetSize(cols, rows)
+	}
+
+	if pty != nil {
+		ResizePty(pty, cols, rows)
+	}
 }
 
 func handleKey(key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
@@ -223,9 +275,8 @@ func handleKey(key glfw.Key, scancode int, action glfw.Action, mods glfw.Modifie
 	}
 }
 
-func renderTerminal(win *glfw.Window) {
-	fbWidth, fbHeight := win.GetFramebufferSize()
-	gl.Viewport(0, 0, int32(fbWidth), int32(fbHeight))
+func renderTerminal(viewportWidth, viewportHeight int) {
+	gl.Viewport(0, 0, int32(viewportWidth), int32(viewportHeight))
 	gl.ClearColor(0.0, 0.0, 0.0, 1.0)
 	gl.Clear(gl.COLOR_BUFFER_BIT)
 

@@ -56,7 +56,7 @@ func StartPty(c *exec.Cmd, width, height int) (*os.File, error) {
 	slave.Close()
 
 	// Resize initially
-	resizePty(master, width, height)
+	ResizePty(master, width, height)
 
 	return master, nil
 }
@@ -70,7 +70,7 @@ func openPty() (*os.File, *os.File, error) {
 	return os.NewFile(uintptr(master), "pty-master"), os.NewFile(uintptr(slave), "pty-slave"), nil
 }
 
-func resizePty(f *os.File, width, height int) error {
+func ResizePty(f *os.File, width, height int) error {
 	ret := C.my_resize(C.int(f.Fd()), C.int(height), C.int(width))
 	if ret != 0 {
 		return fmt.Errorf("resize ioctl failed")

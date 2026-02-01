@@ -7,7 +7,7 @@ import (
 )
 
 // startShellWithBackend starts a shell and connects it to the terminal backend
-func startShellWithBackend(shellPath string, term *TerminalBackend) error {
+func startShellWithBackend(shellPath string, term *TerminalBackend) (*os.File, error) {
 	cmd := exec.Command(shellPath)
 	cmd.Env = os.Environ()
 
@@ -16,7 +16,7 @@ func startShellWithBackend(shellPath string, term *TerminalBackend) error {
 	// Start PTY
 	ptymaster, err := StartPty(cmd, width, height)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Copy PTY output to terminal
@@ -55,5 +55,5 @@ func startShellWithBackend(shellPath string, term *TerminalBackend) error {
 		ptymaster.Close()
 	}()
 
-	return nil
+	return ptymaster, nil
 }
