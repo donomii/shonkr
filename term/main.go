@@ -299,31 +299,120 @@ func renderTerminal(viewportWidth, viewportHeight int) {
 			pic[i+3] = 255 // A
 		}
 
-		// Get terminal text and sync editor buffer to enable selection/copy
-		displayText := term.String()
-		if ed != nil && ed.ActiveBuffer != nil {
-			SetBuffer(ed.ActiveBuffer, displayText)
+		// Get terminal screen state
+		screen := term.GetScreen()
+		cursorX, cursorY := term.GetCursor()
+		// width, _ := term.GetSize()
+
+		// Build tokens and calculate cursor index
+		var tokens []glim.Token
+		var cursorIndex int = -1
+
+		// We iterate line by line.
+		// term.GetScreen returns lines.
+		// We will append \n to each line to match glim's expected flow
+
+		currentIndex := 0
+		for y, line := range screen {
+			for x, cell := range line.Cells {
+				// Check if this is the cursor position
+				if x == cursorX && y == cursorY {
+					cursorIndex = currentIndex
+				}
+
+				// Convert simple text. TODO: Handle colors
+				// For now, mapping everything to white, but setting up structure
+				// We can handle colors later or now... let's try basic colors now
+
+				fg := getColor(cell.FG)
+				// bg := getColor(cell.BG) // TODO: background support in glim tokens?
+
+				t := glim.Token{
+					Text: string(cell.Char),
+					Style: glim.Style{
+						ForegroundColour: fg,
+					},
+				}
+				tokens = append(tokens, t)
+				currentIndex++
+			}
+
+			// Add newline
+			tokens = append(tokens, glim.Token{Text: "\n", Style: glim.Style{ForegroundColour: &glim.RGBA{255, 255, 255, 255}}})
+			currentIndex++
 		}
 
-		// Render text
-		if len(displayText) > 0 {
-			form.Colour = &glim.RGBA{255, 255, 255, 255}
-			// Enable selection outlines and pass real mouse position (relative to text origin at 10,10)
-			ed.ActiveBuffer.Formatter.Outline = true
-			mx := mouseX - 10
-			my := mouseY - 10
-			if mx < 0 {
-				mx = 0
-			}
-			if my < 0 {
-				my = 0
-			}
-			glim.RenderPara(form, 0, 0, 0, 0, winWidth, winHeight, winWidth, winHeight, mx, my, pic, displayText, false, true, true)
+		// If cursor is at the end of input
+		if cursorIndex == -1 && cursorX == 0 && cursorY >= len(screen) {
+			cursorIndex = currentIndex
 		}
+
+		// Configure formatter
+		if ed.ActiveBuffer.Formatter == nil {
+			ed.ActiveBuffer.Formatter = glim.NewFormatter()
+		}
+		form := ed.ActiveBuffer.Formatter
+		form.Colour = &glim.RGBA{255, 255, 255, 255}
+		form.Cursor = cursorIndex
+		form.CursorColour = &glim.RGBA{200, 200, 200, 255} // Visible cursor
+
+		// Render
+		glim.RenderTokenPara(form, 0, 0, 0, 0, winWidth, winHeight, winWidth, winHeight, mouseX, mouseY, pic, tokens, false, true, true)
 
 		// Display the rendered buffer
 		renderBuffer()
 	}
+}
+
+// Basic ANSI 256 color mapping (simplified)
+func getColor(colorIndex int) *glim.RGBA {
+	// Default foreground (usually code 7 or similar in some maps, but vt10x stores raw index)
+	// -1 or specific values might be default. assume white for standard
+	if colorIndex < 0 || colorIndex > 255 {
+		return &glim.RGBA{255, 255, 255, 255}
+	}
+
+	// Standard ANSI colors (0-15)
+	// 0: Black, 1: Red...
+	// This is a rough map, refining it would be good
+	switch colorIndex {
+	case 0:
+		return &glim.RGBA{0, 0, 0, 255}
+	case 1:
+		return &glim.RGBA{170, 0, 0, 255}
+	case 2:
+		return &glim.RGBA{0, 170, 0, 255}
+	case 3:
+		return &glim.RGBA{170, 85, 0, 255}
+	case 4:
+		return &glim.RGBA{0, 0, 170, 255}
+	case 5:
+		return &glim.RGBA{170, 0, 170, 255}
+	case 6:
+		return &glim.RGBA{0, 170, 170, 255}
+	case 7:
+		return &glim.RGBA{170, 170, 170, 255}
+	case 8:
+		return &glim.RGBA{85, 85, 85, 255}
+	case 9:
+		return &glim.RGBA{255, 85, 85, 255}
+	case 10:
+		return &glim.RGBA{85, 255, 85, 255}
+	case 11:
+		return &glim.RGBA{255, 255, 85, 255}
+	case 12:
+		return &glim.RGBA{85, 85, 255, 255}
+	case 13:
+		return &glim.RGBA{255, 85, 255, 255}
+	case 14:
+		return &glim.RGBA{85, 255, 255, 255}
+	case 15:
+		return &glim.RGBA{255, 255, 255, 255}
+	}
+
+	// For 256 colors, we'd need a formula or table.
+	// For now, return White for anything else to ensure visibility
+	return &glim.RGBA{255, 255, 255, 255}
 }
 
 func renderBuffer() {
