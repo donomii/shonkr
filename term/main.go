@@ -337,14 +337,33 @@ func renderTerminal(viewportWidth, viewportHeight int) {
 				currentIndex++
 			}
 
+			// Check if cursor is at the right edge (x == width) of this line
+			// This happens when typing the last character before wrapping
+			if cursorY == y && cursorX >= len(line.Cells) {
+				cursorIndex = currentIndex
+			}
+
 			// Add newline
 			tokens = append(tokens, glim.Token{Text: "\n", Style: glim.Style{ForegroundColour: &glim.RGBA{255, 255, 255, 255}}})
 			currentIndex++
 		}
 
 		// If cursor is at the end of input
-		if cursorIndex == -1 && cursorX == 0 && cursorY >= len(screen) {
-			cursorIndex = currentIndex
+		if cursorIndex == -1 {
+			// Fallback: if cursor is valid but fell through standard checks (e.g. y == height)
+			// Default to end of text
+			if cursorY >= len(screen) {
+				cursorIndex = currentIndex
+			} else {
+				// If cursor is within Y bounds but was missed (e.g. logic error), place it at start of that line
+				// This ensures it's at least VISIBLE near the action
+				// width := len(screen[0].Cells)
+				// approximate
+				if cursorY < len(screen) {
+					cursorIndex = cursorY * (len(screen[0].Cells) + 1) // +1 for newline
+					cursorIndex += minim(cursorX, len(screen[0].Cells))
+				}
+			}
 		}
 
 		// Configure formatter
@@ -423,4 +442,11 @@ func renderBuffer() {
 	}
 	rdr.UpdateTexture(pic, winWidth, winHeight)
 	rdr.Draw()
+}
+
+func minim(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
