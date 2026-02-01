@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"sync/atomic"
 	"time"
 
 	"github.com/atotto/clipboard"
@@ -15,7 +16,7 @@ import (
 
 var winWidth = 900
 var winHeight = 900
-var needsRedraw = true
+var needsRedraw int32 = 1 // 1 for true, 0 for false
 var active = false
 var ed *GlobalConfig
 var form *glim.FormatParams
@@ -123,7 +124,7 @@ func main() {
 	}
 
 	active = true
-	needsRedraw = true
+	atomic.StoreInt32(&needsRedraw, 1)
 
 	// Main loop
 	for !win.ShouldClose() {
@@ -133,10 +134,10 @@ func main() {
 
 		updateTermSize()
 
-		if needsRedraw {
+		// Atomically check and reset flag
+		if atomic.SwapInt32(&needsRedraw, 0) == 1 {
 			renderTerminal(fbWidth, fbHeight)
 			win.SwapBuffers()
-			needsRedraw = false
 		}
 
 		time.Sleep(16 * time.Millisecond) // ~60 FPS

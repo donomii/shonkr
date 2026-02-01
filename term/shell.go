@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"sync/atomic"
 )
 
 // startShellWithBackend starts a shell and connects it to the terminal backend
@@ -30,7 +31,7 @@ func startShellWithBackend(shellPath string, term *TerminalBackend) (*os.File, e
 			}
 			if n > 0 {
 				term.Write(buf[:n])
-				needsRedraw = true
+				atomic.StoreInt32(&needsRedraw, 1)
 			}
 		}
 	}()
