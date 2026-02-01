@@ -98,6 +98,9 @@ func main() {
 	})
 
 	win.SetCharModsCallback(func(w *glfw.Window, char rune, mods glfw.ModifierKey) {
+		if char == '\n' || char == '\r' {
+			return
+		}
 		text := string(char)
 		if shellIn != nil {
 			shellIn <- []byte(text)
@@ -193,7 +196,7 @@ func handleKey(key glfw.Key, scancode int, action glfw.Action, mods glfw.Modifie
 		switch key {
 		case glfw.KeyEnter:
 			if shellIn != nil {
-				shellIn <- []byte("\n")
+				shellIn <- []byte("\r")
 			}
 		case glfw.KeyBackspace:
 			if shellIn != nil {
