@@ -164,7 +164,7 @@ func updateTermSize() {
 		fontSize = ed.ActiveBuffer.Formatter.FontSize
 	}
 
-	w, _, lineHeight := glim.GetFontMetrics(fontSize, "M")
+	w, lineHeight := glim.GetGlyphSize(fontSize, "M")
 	charW := w / 2
 	charH := lineHeight
 
