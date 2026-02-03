@@ -164,9 +164,10 @@ func updateTermSize() {
 		fontSize = ed.ActiveBuffer.Formatter.FontSize
 	}
 
-	w, lineHeight := glim.GetGlyphSize(fontSize, "M")
-	charW := w / 2
-	charH := lineHeight
+	_, face := glim.DrawStringRGBA(fontSize, glim.RGBA{255, 255, 255, 255}, "M", "f1.ttf")
+	metrics := (*face).Metrics()
+	charH := metrics.Height.Round()
+	charW := charH / 2
 
 	if charW == 0 || charH == 0 {
 		// Avoid divide by zero
@@ -174,7 +175,7 @@ func updateTermSize() {
 	}
 
 	cols := winWidth / charW
-	rows := (winHeight / charH) - 1
+	rows := (winHeight / charH)
 
 	if cols < 1 {
 		cols = 1
@@ -376,7 +377,9 @@ func renderTerminal(viewportWidth, viewportHeight int) {
 		form.CursorColour = &glim.RGBA{200, 200, 200, 255} // Visible cursor
 
 		// Render
-		glim.RenderTokenPara(form, 0, 0, 0, 0, winWidth, winHeight, winWidth, winHeight, mouseX, mouseY, pic, tokens, false, true, true)
+		// Increase maxY to avoid glim's aggressive clipping of the bottom row
+		renderedMaxY := winHeight + 100
+		glim.RenderTokenPara(form, 0, 0, 0, 0, winWidth, renderedMaxY, winWidth, winHeight, mouseX, mouseY, pic, tokens, false, true, true)
 
 		// Display the rendered buffer
 		renderBuffer()
