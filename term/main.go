@@ -5,10 +5,10 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"strings"
 	"sync/atomic"
 	"time"
 
-	"github.com/atotto/clipboard"
 	"github.com/donomii/glim"
 	"github.com/go-gl/gl/v3.2-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
@@ -33,6 +33,10 @@ var rdr Renderer
 var shellIn chan []byte
 var mouseX, mouseY int
 var mouseDown bool
+var mouseWasDown bool
+var selecting bool
+var selectAnchor int
+var lastHoverIndex int
 
 var pty *os.File
 
@@ -49,6 +53,10 @@ func main() {
 	// Initialize editor
 	ed = NewEditor()
 	form = glim.NewFormatter()
+	form.SelectStart = -1
+	form.SelectEnd = -1
+	form.SelectColour = &glim.RGBA{255, 255, 255, 255}
+	form.HighlightColour = &glim.RGBA{50, 120, 200, 255}
 	ed.ActiveBuffer.Formatter = form
 	SetFont(ed.ActiveBuffer, 12)
 
@@ -92,6 +100,7 @@ func main() {
 		log.Fatal(err)
 	}
 	win.MakeContextCurrent()
+	SetClipboardWindow(win)
 
 	// Key handling
 	win.SetKeyCallback(func(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
@@ -111,11 +120,13 @@ func main() {
 	win.SetCursorPosCallback(func(w *glfw.Window, xpos float64, ypos float64) {
 		mouseX = int(xpos)
 		mouseY = int(ypos)
+		atomic.StoreInt32(&needsRedraw, 1)
 	})
 
 	win.SetMouseButtonCallback(func(w *glfw.Window, button glfw.MouseButton, action glfw.Action, mods glfw.ModifierKey) {
 		if button == glfw.MouseButtonLeft {
 			mouseDown = (action != glfw.Release)
+			atomic.StoreInt32(&needsRedraw, 1)
 		}
 	})
 
@@ -233,8 +244,13 @@ func handleKey(key glfw.Key, scancode int, action glfw.Action, mods glfw.Modifie
 
 	// Handle Ctrl combinations
 	if action == glfw.Press {
-		// Treat Command (macOS) or Control (others) as "app shortcuts"
-		appMod := (mods&glfw.ModSuper) != 0 || (mods&glfw.ModControl) != 0
+		// Treat Command (macOS) or Control+Shift (others) as "app shortcuts"
+		appMod := false
+		if runtime.GOOS == "darwin" {
+			appMod = (mods & glfw.ModSuper) != 0
+		} else {
+			appMod = (mods&glfw.ModControl) != 0 && (mods&glfw.ModShift) != 0
+		}
 		if appMod {
 			switch key {
 			case glfw.KeyA: // Select all
@@ -255,7 +271,7 @@ func handleKey(key glfw.Key, scancode int, action glfw.Action, mods glfw.Modifie
 				}
 			case glfw.KeyV: // Paste to shell
 				if shellIn != nil {
-					if txt, err := clipboard.ReadAll(); err == nil {
+					if txt := clipboardRead(); txt != "" {
 						shellIn <- []byte(txt)
 					}
 				}
@@ -268,8 +284,10 @@ func handleKey(key glfw.Key, scancode int, action glfw.Action, mods glfw.Modifie
 			}
 			return
 		}
+	}
+	if action == glfw.Press || action == glfw.Repeat {
 		// Raw Ctrl key to shell (e.g., Ctrl+C)
-		if (mods & glfw.ModControl) != 0 {
+		if (mods&glfw.ModControl) != 0 && (mods&glfw.ModShift) == 0 && (mods&glfw.ModSuper) == 0 {
 			if key >= glfw.KeyA && key <= glfw.KeyZ {
 				ctrl_char := byte(key - glfw.KeyA + 1)
 				if shellIn != nil {
@@ -308,6 +326,7 @@ func renderTerminal(viewportWidth, viewportHeight int) {
 		// Build tokens and calculate cursor index
 		var tokens []glim.Token
 		var cursorIndex int = -1
+		var screenText strings.Builder
 
 		// We iterate line by line.
 		// term.GetScreen returns lines.
@@ -316,6 +335,7 @@ func renderTerminal(viewportWidth, viewportHeight int) {
 		currentIndex := 0
 		for y, line := range screen {
 			for x, cell := range line.Cells {
+				screenText.WriteRune(cell.Char)
 				// Check if this is the cursor position
 				if x == cursorX && y == cursorY {
 					cursorIndex = currentIndex
@@ -345,9 +365,14 @@ func renderTerminal(viewportWidth, viewportHeight int) {
 			}
 
 			// Add newline
+			screenText.WriteByte('\n')
 			tokens = append(tokens, glim.Token{Text: "\n", Style: glim.Style{ForegroundColour: &glim.RGBA{255, 255, 255, 255}}})
 			currentIndex++
 		}
+
+		// Keep buffer text in sync for selection/copy
+		ed.ActiveBuffer.Data.Text = screenText.String()
+		textLen := currentIndex
 
 		// If cursor is at the end of input
 		if cursorIndex == -1 {
@@ -370,6 +395,10 @@ func renderTerminal(viewportWidth, viewportHeight int) {
 		// Configure formatter
 		if ed.ActiveBuffer.Formatter == nil {
 			ed.ActiveBuffer.Formatter = glim.NewFormatter()
+			ed.ActiveBuffer.Formatter.SelectStart = -1
+			ed.ActiveBuffer.Formatter.SelectEnd = -1
+			ed.ActiveBuffer.Formatter.SelectColour = &glim.RGBA{255, 255, 255, 255}
+			ed.ActiveBuffer.Formatter.HighlightColour = &glim.RGBA{50, 120, 200, 255}
 		}
 		form := ed.ActiveBuffer.Formatter
 		form.Colour = &glim.RGBA{255, 255, 255, 255}
@@ -379,6 +408,10 @@ func renderTerminal(viewportWidth, viewportHeight int) {
 		// Render
 		// Increase maxY to avoid glim's aggressive clipping of the bottom row
 		renderedMaxY := winHeight + 100
+		hoverProbe := *form
+		hoverIndex, _, _ := glim.RenderTokenPara(&hoverProbe, 0, 0, 0, 0, winWidth, renderedMaxY, winWidth, winHeight, mouseX, mouseY, pic, tokens, false, false, false)
+		lastHoverIndex = clampIndex(hoverIndex, textLen-1)
+		updateSelection(textLen)
 		glim.RenderTokenPara(form, 0, 0, 0, 0, winWidth, renderedMaxY, winWidth, winHeight, mouseX, mouseY, pic, tokens, false, true, true)
 
 		// Display the rendered buffer
@@ -452,4 +485,60 @@ func minim(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func clampIndex(index, max int) int {
+	if max < 0 {
+		return 0
+	}
+	if index < 0 {
+		return 0
+	}
+	if index > max {
+		return max
+	}
+	return index
+}
+
+func updateSelection(textLen int) {
+	if ed == nil || ed.ActiveBuffer == nil || ed.ActiveBuffer.Formatter == nil {
+		mouseWasDown = mouseDown
+		return
+	}
+	form := ed.ActiveBuffer.Formatter
+	maxIndex := textLen - 1
+	if maxIndex < 0 {
+		form.SelectStart = -1
+		form.SelectEnd = -1
+		mouseWasDown = mouseDown
+		return
+	}
+
+	if mouseDown && !mouseWasDown {
+		selecting = true
+		selectAnchor = clampIndex(lastHoverIndex, maxIndex)
+		form.SelectStart = selectAnchor
+		form.SelectEnd = selectAnchor
+	}
+
+	if mouseDown && selecting {
+		current := clampIndex(lastHoverIndex, maxIndex)
+		if current < selectAnchor {
+			form.SelectStart = current
+			form.SelectEnd = selectAnchor
+		} else {
+			form.SelectStart = selectAnchor
+			form.SelectEnd = current
+		}
+	}
+
+	if !mouseDown && mouseWasDown {
+		selecting = false
+		if form.SelectStart == form.SelectEnd {
+			form.SelectStart = -1
+			form.SelectEnd = -1
+		}
+	}
+
+	mouseWasDown = mouseDown
 }

@@ -18,7 +18,6 @@ import (
 	"log"
 	"strings"
 
-	"github.com/atotto/clipboard"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -422,7 +421,7 @@ func SetBuffer(buff *Buffer, text string) {
 }
 
 func PasteFromClipBoard(gc *GlobalConfig) {
-	text, _ := clipboard.ReadAll()
+	text := clipboardRead()
 	dispatch("EXCISE-SELECTION", gc)
 
 	if gc.ActiveBuffer.Formatter.Cursor < 0 {
@@ -483,7 +482,15 @@ func dispatch(command string, gc *GlobalConfig) {
 	case "PASTE-FROM-CLIPBOARD":
 		PasteFromClipBoard(gc)
 	case "COPY-TO-CLIPBOARD":
-		clipboard.WriteAll(gc.ActiveBuffer.Data.Text[gc.ActiveBuffer.Formatter.SelectStart : gc.ActiveBuffer.Formatter.SelectEnd+1])
+		if gc.ActiveBuffer == nil || gc.ActiveBuffer.Formatter == nil {
+			return
+		}
+		start := gc.ActiveBuffer.Formatter.SelectStart
+		end := gc.ActiveBuffer.Formatter.SelectEnd
+		if start < 0 || end < start || end >= len(gc.ActiveBuffer.Data.Text) {
+			return
+		}
+		clipboardWrite(gc.ActiveBuffer.Data.Text[start : end+1])
 	case "CUT-TO-CLIPBOARD":
 		dispatch("COPY-TO-CLIPBOARD", gc)
 		dispatch("EXCISE-SELECTION", gc)

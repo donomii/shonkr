@@ -14,8 +14,6 @@ import (
 
 	"fmt"
 
-	"github.com/atotto/clipboard"
-
 	"log"
 	"os"
 )
@@ -50,7 +48,7 @@ func drawmenu(ctx *nk.Context, state *State) {
 	if nk.NkMenuBeginLabel(ctx, "Edit", nk.TextLeft, nk.NkVec2(menuItemWidth, menuItemHeight)) > 0 {
 		nk.NkLayoutRowDynamic(ctx, 25, 1)
 		if nk.NkMenuItemLabel(ctx, "Paste", nk.TextLeft) > 0 {
-			text, _ := clipboard.ReadAll()
+			text := clipboardRead()
 			shellIn <- []byte(text)
 			needsRedraw = true
 		}
