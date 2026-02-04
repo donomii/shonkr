@@ -16,7 +16,7 @@ require (
 	github.com/mattn/go-shellwords v1.0.12
 	github.com/rivo/tview v0.42.0
 	github.com/xlab/closer v1.1.0
-	golang.org/x/crypto v0.42.0
+	golang.org/x/crypto v0.45.0
 	golang.org/x/image v0.31.0
 )
 
@@ -32,7 +32,7 @@ require (
 	github.com/veandco/go-sdl2 v0.4.40 // indirect
 	github.com/xlab/android-go v0.0.0-20221106204035-3cc54d5032fa // indirect
 	golang.org/x/mobile v0.0.0-20250813145510-f12310a0cfd9 // indirect
-	golang.org/x/sys v0.36.0 // indirect
-	golang.org/x/term v0.35.0 // indirect
-	golang.org/x/text v0.29.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/term v0.37.0 // indirect
+	golang.org/x/text v0.31.0 // indirect
 )
